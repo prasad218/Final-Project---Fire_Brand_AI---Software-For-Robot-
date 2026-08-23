@@ -532,7 +532,7 @@ The project demonstrates the integration of computer vision, conversational AI, 
 ### Guides / Mentors
 
 - **Dr. Jeevitha Ravindra**
-- **Rajani Rai**
+- **Dr. Rajani Rai**
 
 ---
 
