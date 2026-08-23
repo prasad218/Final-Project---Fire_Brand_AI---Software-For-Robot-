@@ -1,0 +1,116 @@
+.viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #04070d;
+  border: 1px solid var(--border-subtle);
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  background: radial-gradient(circle at 50% 40%, rgba(56, 211, 255, 0.06), transparent 70%);
+}
+
+.placeholder p {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, transparent 0px, transparent 3px, rgba(56, 211, 255, 0.03) 4px);
+}
+
+.box {
+  position: absolute;
+  border: 1.5px solid var(--cyan);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(56, 211, 255, 0.3);
+}
+
+.boxLabel {
+  position: absolute;
+  top: -20px;
+  left: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--cyan);
+  background: rgba(4, 7, 13, 0.85);
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+
+.hudTopLeft {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--red);
+  letter-spacing: 0.08em;
+  background: rgba(4, 7, 13, 0.6);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.hidden {
+  display: none;
+}
+
+.recDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.hudBottomLeft {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  display: flex;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.hudBottomLeft span {
+  background: rgba(4, 7, 13, 0.65);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+}

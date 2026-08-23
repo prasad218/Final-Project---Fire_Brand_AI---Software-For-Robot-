@@ -1,0 +1,127 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--duration-fast) var(--ease-standard);
+  white-space: nowrap;
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+.button:focus-visible {
+  outline-offset: 2px;
+}
+
+/* --- variant: outline (default) --- */
+.outline.cyan {
+  border-color: var(--cyan-dim);
+  color: var(--cyan);
+  background: rgba(56, 211, 255, 0.06);
+}
+.outline.cyan:hover:not(:disabled) {
+  background: rgba(56, 211, 255, 0.14);
+  box-shadow: var(--glow-cyan);
+}
+
+.outline.green {
+  border-color: var(--green-dim);
+  color: var(--green);
+  background: rgba(52, 227, 161, 0.06);
+}
+.outline.green:hover:not(:disabled) {
+  background: rgba(52, 227, 161, 0.14);
+  box-shadow: var(--glow-green);
+}
+
+.outline.orange {
+  border-color: var(--orange-dim);
+  color: var(--orange);
+  background: rgba(240, 136, 62, 0.06);
+}
+.outline.orange:hover:not(:disabled) {
+  background: rgba(240, 136, 62, 0.14);
+  box-shadow: var(--glow-orange);
+}
+
+.outline.purple {
+  border-color: var(--purple-dim);
+  color: var(--purple);
+  background: rgba(167, 139, 250, 0.06);
+}
+.outline.purple:hover:not(:disabled) {
+  background: rgba(167, 139, 250, 0.14);
+  box-shadow: var(--glow-purple);
+}
+
+.outline.neutral {
+  border-color: var(--border-glow);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+.outline.neutral:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* --- variant: solid --- */
+.solid.cyan {
+  background: var(--cyan);
+  color: #04121b;
+}
+.solid.cyan:hover:not(:disabled) {
+  box-shadow: var(--glow-cyan);
+  transform: translateY(-1px);
+}
+
+.solid.green {
+  background: var(--green);
+  color: #04211a;
+}
+.solid.green:hover:not(:disabled) {
+  box-shadow: var(--glow-green);
+  transform: translateY(-1px);
+}
+
+.solid.orange {
+  background: var(--orange);
+  color: #251103;
+}
+.solid.orange:hover:not(:disabled) {
+  box-shadow: var(--glow-orange);
+  transform: translateY(-1px);
+}
+
+.solid.purple {
+  background: var(--purple);
+  color: #1b1230;
+}
+.solid.purple:hover:not(:disabled) {
+  box-shadow: var(--glow-purple);
+  transform: translateY(-1px);
+}
+
+.solid:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* --- variant: ghost --- */
+.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+.ghost:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}

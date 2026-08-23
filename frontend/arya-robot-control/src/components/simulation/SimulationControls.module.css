@@ -1,0 +1,40 @@
+.pad {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(3, 44px);
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.padBtn {
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: rgba(52, 227, 161, 0.05);
+  color: var(--green);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+.padBtn:hover {
+  background: rgba(52, 227, 161, 0.16);
+  box-shadow: var(--glow-green);
+  transform: translateY(-1px);
+}
+
+.stop {
+  color: var(--red);
+  border-color: rgba(240, 84, 106, 0.4);
+  background: rgba(240, 84, 106, 0.06);
+}
+.stop:hover {
+  background: rgba(240, 84, 106, 0.16);
+  box-shadow: 0 0 20px rgba(240, 84, 106, 0.25);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}

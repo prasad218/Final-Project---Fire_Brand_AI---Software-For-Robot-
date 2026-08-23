@@ -1,0 +1,50 @@
+# AURA (Windows build) — Python dependencies
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# If `pip install pyaudio` fails on Windows with a build error (no C
+# compiler), use one of these instead:
+#   pip install pipwin && pipwin install pyaudio
+# or download a prebuilt wheel matching your Python version from
+# https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio and
+#   pip install path\to\PyAudio‑0.2.14‑cpXXX‑cpXXX‑win_amd64.whl
+# See SETUP_NOTES.md for the full walkthrough.
+
+python-dotenv
+numpy
+opencv-python
+requests
+
+# Reads backend/AURA_Windows/data/Campus_Locations.xlsx (campus_locations.py)
+# to ground chat answers about rooms/blocks/facilities in the real
+# spreadsheet instead of only the hand-typed list in vivek_common.py.
+openpyxl
+
+# Face recognition
+insightface
+onnxruntime          # plain CPU build; see SETUP_NOTES.md for GPU (CUDA) setup
+ultralytics           # YOLOv8 (only used if ENABLE_PERSON_DETECTION=true; pulls in torch)
+
+# Voice input (speech-to-text) — used for command/phrase detection only.
+# AURA's actual answers and voice both come from Gemini (below).
+SpeechRecognition
+PyAudio
+
+# Voice OUTPUT — cross-platform audio playback (Windows/macOS/Linux) via
+# PortAudio. This replaces the original Jetson build's `aplay` (a
+# Linux-only ALSA command-line tool that doesn't exist on Windows).
+sounddevice
+
+# AURA's ONLY brain + ONLY voice (desktop app, vivek_main.py) — see
+# aura_gemini.py. Needs a GEMINI_API_KEY in .env. The web backend
+# (web_server.py / chat_service.py) reuses this SAME package for its
+# plain-text Gemini calls (client.models.generate_content), just a
+# different corner of the same SDK — no second AI package needed.
+google-genai
+
+# ---- Web backend (web_server.py) — serves the React frontend ----
+# (arya-robot-control) over HTTP/WebSocket: MJPEG vision stream,
+# /api/chat, /api/robot/command. See WEB_INTEGRATION.md.
+fastapi
+uvicorn[standard]

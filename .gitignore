@@ -1,0 +1,9 @@
+﻿backend/AURA_Windows/.env
+backend/AURA_Windows/.venv/
+backend/AURA_Windows/venv/
+__pycache__/
+*.pyc
+backend/AURA_Windows/yolov8n.pt
+backend/AURA_Windows/known_faces/*
+frontend/arya-robot-control/node_modules/
+frontend/arya-robot-control/dist/

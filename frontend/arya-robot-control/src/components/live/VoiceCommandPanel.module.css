@@ -1,0 +1,125 @@
+.listenRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  cursor: pointer;
+  margin-bottom: 14px;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.listenRow:hover {
+  border-color: var(--purple-dim);
+}
+
+.mic {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(167, 139, 250, 0.08);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.micActive {
+  color: var(--purple);
+  border-color: var(--purple-dim);
+  box-shadow: var(--glow-purple);
+  animation: micPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes micPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(167, 139, 250, 0);
+  }
+}
+
+.listenLabel {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.exchange {
+  background: var(--bg-void);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.exchange p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.exchange p:first-child {
+  margin-bottom: 6px;
+}
+.exchange span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-right: 6px;
+}
+.you span {
+  color: var(--cyan);
+}
+.arya span {
+  color: var(--purple);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.quickGroup {
+  margin-bottom: 12px;
+}
+.quickGroup:last-child {
+  margin-bottom: 0;
+}
+
+.groupLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.quickRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.quickBtn {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+.quickBtn:hover {
+  color: var(--purple);
+  border-color: var(--purple-dim);
+} 
+
+distance { color: var(--text-muted); font-size: 12px; }

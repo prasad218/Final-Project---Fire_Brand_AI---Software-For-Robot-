@@ -1,0 +1,147 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.history {
+  flex: 1;
+  min-height: 220px;
+  max-height: 360px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 40px;
+}
+
+.bubbleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 85%;
+}
+
+.left {
+  align-self: flex-start;
+}
+
+.right {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(167, 139, 250, 0.1);
+  color: var(--purple);
+  border: 1px solid var(--purple-dim);
+  flex-shrink: 0;
+}
+
+.right .avatar {
+  background: rgba(56, 211, 255, 0.1);
+  color: var(--cyan);
+  border-color: var(--cyan-dim);
+}
+
+.bubble {
+  padding: 9px 13px;
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-subtle);
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.right .bubble {
+  background: rgba(56, 211, 255, 0.08);
+}
+
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.spin {
+  animation: cp-spin 0.9s linear infinite;
+}
+
+@keyframes cp-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.chip {
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+.chip:hover {
+  color: var(--purple);
+  border-color: var(--purple-dim);
+}
+
+.inputRow {
+  display: flex;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.input:focus {
+  border-color: var(--purple-dim);
+}
+
+.sendBtn {
+  width: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--purple-dim);
+  background: rgba(167, 139, 250, 0.1);
+  color: var(--purple);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+.sendBtn:hover {
+  box-shadow: var(--glow-purple);
+}

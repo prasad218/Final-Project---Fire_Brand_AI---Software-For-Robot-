@@ -1,0 +1,69 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.mic {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-subtle);
+  background: rgba(167, 139, 250, 0.06);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+
+.mic:hover {
+  border-color: var(--purple-dim);
+  color: var(--purple);
+}
+
+.listening {
+  color: var(--purple);
+  border-color: var(--purple-dim);
+  box-shadow: var(--glow-purple);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.processing {
+  color: var(--cyan);
+  border-color: var(--cyan-dim);
+}
+
+.speaking {
+  color: var(--green);
+  border-color: var(--green-dim);
+  box-shadow: var(--glow-green);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(167, 139, 250, 0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

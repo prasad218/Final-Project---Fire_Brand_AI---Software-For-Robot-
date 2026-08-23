@@ -1,0 +1,49 @@
+:root {
+  /* Surfaces */
+  --bg-void: #050810;
+  --bg-base: #070b16;
+  --bg-panel: #0c1322cc;
+  --bg-panel-solid: #0c1322;
+  --bg-panel-raised: #101a2e;
+  --border-subtle: #1e2b45;
+  --border-glow: #2a3f63;
+
+  /* Accents */
+  --cyan: #38d3ff;
+  --cyan-dim: #1c7fa3;
+  --blue: #3b82f6;
+  --green: #34e3a1;
+  --green-dim: #1c8b64;
+  --orange: #f0883e;
+  --orange-dim: #b8602a;
+  --purple: #a78bfa;
+  --purple-dim: #6d5bb0;
+  --red: #f0546a;
+
+  /* Text */
+  --text-primary: #e8edf6;
+  --text-secondary: #90a0bd;
+  --text-tertiary: #6d7fa0;
+  --text-muted: #5b6a89;
+
+  /* Type */
+  --font-display: "Rajdhani", "Segoe UI Semibold", sans-serif;
+  --font-body: "Inter", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Consolas", monospace;
+
+  /* Radii + shadow */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --shadow-panel: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --glow-cyan: 0 0 24px rgba(56, 211, 255, 0.25);
+  --glow-green: 0 0 20px rgba(52, 227, 161, 0.25);
+  --glow-orange: 0 0 20px rgba(240, 136, 62, 0.25);
+  --glow-purple: 0 0 24px rgba(167, 139, 250, 0.28);
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-med: 320ms;
+  --duration-slow: 700ms;
+}

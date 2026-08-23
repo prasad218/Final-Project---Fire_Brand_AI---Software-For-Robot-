@@ -1,0 +1,81 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot.pulse::after {
+  content: "";
+  position: absolute;
+}
+
+.green {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+.cyan {
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+.orange {
+  background: var(--orange);
+  box-shadow: 0 0 8px var(--orange);
+}
+.purple {
+  background: var(--purple);
+  box-shadow: 0 0 8px var(--purple);
+}
+.red {
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+}
+.muted {
+  background: var(--text-muted);
+}
+
+.pulse {
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.text-green {
+  color: var(--green);
+}
+.text-cyan {
+  color: var(--cyan);
+}
+.text-orange {
+  color: var(--orange);
+}
+.text-purple {
+  color: var(--purple);
+}
+.text-red {
+  color: var(--red);
+}
+.text-muted {
+  color: var(--text-muted);
+}

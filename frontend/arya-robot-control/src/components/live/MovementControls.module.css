@@ -1,0 +1,48 @@
+.pad {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(3, 44px);
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.padBtn {
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: rgba(56, 211, 255, 0.04);
+  color: var(--cyan);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+.padBtn:hover {
+  background: rgba(56, 211, 255, 0.14);
+  box-shadow: var(--glow-cyan);
+  transform: translateY(-1px);
+}
+.padBtn:active {
+  transform: translateY(0);
+}
+
+.stop {
+  color: var(--red);
+  border-color: rgba(240, 84, 106, 0.4);
+  background: rgba(240, 84, 106, 0.06);
+}
+.stop:hover {
+  background: rgba(240, 84, 106, 0.16);
+  box-shadow: 0 0 20px rgba(240, 84, 106, 0.25);
+}
+
+.currentAction {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.currentAction strong {
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}

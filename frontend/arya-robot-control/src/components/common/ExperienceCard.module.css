@@ -1,0 +1,105 @@
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--bg-panel-raised) 0%, var(--bg-panel-solid) 100%);
+  border: 1px solid var(--border-subtle);
+  transition: transform var(--duration-med) var(--ease-standard), border-color var(--duration-med),
+    box-shadow var(--duration-med);
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+.visual {
+  height: 130px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-void);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+
+.title {
+  font-size: 22px;
+  color: var(--text-primary);
+}
+
+.description {
+  font-size: 14px;
+  flex: 1;
+}
+
+.cta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid currentColor;
+  background: transparent;
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+
+.cta:hover {
+  transform: translateX(2px);
+}
+
+.cyan {
+  color: var(--cyan);
+}
+.cyan:hover {
+  border-color: var(--cyan);
+  box-shadow: var(--glow-cyan);
+}
+.cyan .cta {
+  color: var(--cyan);
+  background: rgba(56, 211, 255, 0.08);
+}
+
+.green {
+  color: var(--green);
+}
+.green:hover {
+  border-color: var(--green);
+  box-shadow: var(--glow-green);
+}
+.green .cta {
+  color: var(--green);
+  background: rgba(52, 227, 161, 0.08);
+}
+
+.purple {
+  color: var(--purple);
+}
+.purple:hover {
+  border-color: var(--purple);
+  box-shadow: var(--glow-purple);
+}
+.purple .cta {
+  color: var(--purple);
+  background: rgba(167, 139, 250, 0.08);
+}
