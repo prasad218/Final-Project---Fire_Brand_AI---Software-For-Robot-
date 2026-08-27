@@ -7,7 +7,6 @@ import { useKeyboardDrive } from "../hooks/useKeyboardDrive";
 import { LiveCamera } from "../components/live/LiveCamera";
 import { VoiceCommandPanel } from "../components/live/VoiceCommandPanel";
 import { MovementControls } from "../components/live/MovementControls";
-import { VisionObjects } from "../components/live/VisionObjects";
 import { RecognizedPeople } from "../components/live/RecognizedPeople";
 import { LiveRobotLog } from "../components/live/LiveRobotLog";
 import { RobotDigitalTwin } from "../components/live/RobotDigitalTwin";
