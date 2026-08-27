@@ -1,30 +1,16 @@
-import { ScanLine } from "lucide-react";
 import type { DetectedObject } from "../../types/vision";
-import { Panel } from "../common/Panel";
-import styles from "./VisionObjects.module.css";
 
 interface VisionObjectsProps {
   objects: DetectedObject[];
 }
 
-export function VisionObjects({ objects }: VisionObjectsProps) {
-  return (
-    <Panel title="Objects Detected" icon={<ScanLine size={14} />} accent="cyan">
-      {objects.length > 0 ? (
-        <ul className={styles.list}>
-          {objects.map((o) => (
-            <li key={o.id} className={styles.item}>
-             <span>
-  {o.label}
-  {o.nearestDistanceM != null && <span className={styles.distance}> · ~{o.nearestDistanceM}m</span>}
-</span>
-              <span className={styles.count}>&times; {o.count}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className={styles.empty}>No objects detected — vision model not connected yet.</p>
-      )}
-    </Panel>
-  );
+/**
+ * Intentionally disabled — the "Objects Detected" panel has been
+ * removed from the Live Robotics UI per product request. The
+ * component is kept as a no-op (rather than deleted) so
+ * LiveRobotics.tsx doesn't need to change if it still imports and
+ * renders <VisionObjects objects={objects} /> somewhere.
+ */
+export function VisionObjects(_props: VisionObjectsProps) {
+  return null;
 }

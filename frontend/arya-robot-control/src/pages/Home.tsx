@@ -56,9 +56,9 @@ export function Home({ onNavigate }: HomeProps) {
           eyebrow="Live"
           icon={<Video size={13} />}
           accent="cyan"
-          title="VCET Live Demo"
+          title="VCET Live"
           description="Control ARYA in real-time using live camera, voice commands and intelligent perception."
-          ctaLabel="Enter Live Demo"
+          ctaLabel="Enter Live"
           onSelect={() => onNavigate("live")}
         />
         <ExperienceCard

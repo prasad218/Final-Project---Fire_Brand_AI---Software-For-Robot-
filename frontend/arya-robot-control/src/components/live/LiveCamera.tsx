@@ -19,8 +19,13 @@ interface LiveCameraProps {
  * stream (GET /api/vision/mjpeg) — bounding boxes and name labels are
  * baked into the JPEG frames server-side, so there's no separate
  * client-side overlay to keep in sync with detection coordinates.
+ *
+ * Note: `objects` is still accepted (LiveRobotics passes it down) so
+ * the caller doesn't need to change, but it's intentionally not
+ * rendered here anymore — the "Objects Detected" HUD text has been
+ * removed from the UI per product request.
  */
-export function LiveCamera({ objects, active }: LiveCameraProps) {
+export function LiveCamera({ active }: LiveCameraProps) {
   const [nonce, setNonce] = useState(0);
   const [streamError, setStreamError] = useState(false);
 
@@ -57,7 +62,7 @@ export function LiveCamera({ objects, active }: LiveCameraProps) {
           className={styles.video}
           onError={() => setStreamError(true)}
         />
-      ) : (
+      ) : ( 
         <div className={styles.placeholder}>
           <ScanEye size={40} />
           <p>
@@ -73,18 +78,6 @@ export function LiveCamera({ objects, active }: LiveCameraProps) {
       <div className={styles.hudTopLeft}>
         <CameraOff size={12} className={styles.hidden} />
         <span className={styles.recDot} /> LIVE
-      </div>
-
-      <div className={styles.hudBottomLeft}>
-        {objects.length > 0 ? (
-          objects.slice(0, 3).map((o) => (
-            <span key={o.id}>
-              {o.label} &times;{o.count}
-            </span>
-          ))
-        ) : (
-          <span>No objects detected</span>
-        )}
       </div>
     </div>
   );

@@ -99,7 +99,7 @@ export function LiveRobotics() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>VCET Live Demo</h1>
+          <h1 className={styles.title}>VCET Live </h1>
           <p className={styles.subtitle}>
             Real-time perception and control — object detection, person detection, and face
             recognition run live on ARYA's backend at VCET.
@@ -165,8 +165,6 @@ export function LiveRobotics() {
               showStationList={false}
             />
           )}
-
-          <VisionObjects objects={objects} />
           <RecognizedPeople people={people} />
         </div>
       </div>
