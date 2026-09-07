@@ -54,6 +54,14 @@ const AUTO_TURN_SPEED = 140; // deg/s
 const ARRIVE_DISTANCE = 0.25; // meters
 const ARRIVE_HEADING = 4; // degrees
 
+// Obstacle-avoidance tuning (walls, pillars, reception desk, anything
+// isWalkable() rejects). Instead of driving straight into something and
+// just stopping dead, we probe ahead each frame and steer around it.
+const AVOID_LOOKAHEAD = 0.9; // meters — how far ahead we "look" for obstacles
+const AVOID_PROBE_ANGLE = 35; // degrees off current heading, checked left/right
+const AVOID_TURN_SPEED = 110; // deg/s while steering around an obstacle
+const AVOID_SLOWDOWN = 0.35; // fraction of normal speed while steering around it
+
 const GESTURE_COMMANDS = new Set<VoiceCommand>(["NAMASTE", "WAVE", "LOOK", "SPEAK"]);
 const BATTERY_DRAIN_INTERVAL_MS = 45_000;
 
@@ -252,10 +260,22 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
             } else {
               const fv = forwardVector(rotation);
               const moveStep = Math.min(AUTO_MOVE_SPEED * dt, distance);
-              x += fv.x * moveStep;
-              z += fv.z * moveStep;
-              action = "MOVING";
-              speed = AUTO_MOVE_SPEED;
+              const nx = x + fv.x * moveStep;
+              const nz = z + fv.z * moveStep;
+              // Autopilot (station drive / patrol) now respects the same
+              // wall + furniture collision as manual driving, instead of
+              // walking straight through the reception desk/pillars.
+              if (isWalkable(nx, nz)) {
+                x = nx; z = nz;
+                action = "MOVING";
+                speed = AUTO_MOVE_SPEED;
+              } else {
+                // Blocked mid-route — hold position and re-aim; the
+                // heading check above will naturally try a new angle
+                // once the target/robot geometry changes.
+                action = "IDLE";
+                speed = 0;
+              }
             }
           }
           curSpeedRef.current = 0;
@@ -263,8 +283,33 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
         } else {
           // Manual / voice-latched continuous drive with smooth accel/decel.
           const di = driveRef.current;
-          const targetSpeed = (di.fwd ? MAX_SPEED : 0) + (di.back ? -MAX_SPEED : 0);
-          const targetTurn = (di.left ? MAX_TURN : 0) + (di.right ? -MAX_TURN : 0);
+          let targetSpeed = (di.fwd ? MAX_SPEED : 0) + (di.back ? -MAX_SPEED : 0);
+          let targetTurn = (di.left ? MAX_TURN : 0) + (di.right ? -MAX_TURN : 0);
+
+          // Obstacle avoidance: if we're driving forward and something is
+          // directly ahead (wall, pillar, reception desk, anything
+          // isWalkable() rejects), automatically steer around it instead
+          // of ramming into it and just stopping dead.
+          if (targetSpeed > 0) {
+            const fvNow = forwardVector(rotation);
+            const aheadX = x + fvNow.x * AVOID_LOOKAHEAD;
+            const aheadZ = z + fvNow.z * AVOID_LOOKAHEAD;
+            if (!isWalkable(aheadX, aheadZ)) {
+              const leftFv = forwardVector(rotation + AVOID_PROBE_ANGLE);
+              const rightFv = forwardVector(rotation - AVOID_PROBE_ANGLE);
+              const leftClear = isWalkable(x + leftFv.x * AVOID_LOOKAHEAD, z + leftFv.z * AVOID_LOOKAHEAD);
+              const rightClear = isWalkable(x + rightFv.x * AVOID_LOOKAHEAD, z + rightFv.z * AVOID_LOOKAHEAD);
+
+              if (leftClear && !rightClear) targetTurn = AVOID_TURN_SPEED;
+              else if (rightClear && !leftClear) targetTurn = -AVOID_TURN_SPEED;
+              else targetTurn = AVOID_TURN_SPEED; // both/neither clear — default to turning left
+
+              targetSpeed *= AVOID_SLOWDOWN;
+              action = "TURNING";
+              emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command: "TURN_LEFT" } });
+            }
+          }
+
           curSpeedRef.current += (targetSpeed - curSpeedRef.current) * Math.min(1, ACCEL * dt);
           curTurnRef.current += (targetTurn - curTurnRef.current) * Math.min(1, TURN_ACCEL * dt);
           if (Math.abs(curSpeedRef.current) < 0.01) curSpeedRef.current = 0;
