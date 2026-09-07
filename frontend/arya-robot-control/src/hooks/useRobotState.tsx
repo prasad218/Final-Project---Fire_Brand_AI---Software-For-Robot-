@@ -21,19 +21,12 @@ export type PatrolLeg = "TO_CORRIDOR_END" | "TO_DOOR" | null;
 interface RobotStateContextValue {
   robot: RobotState;
   setMode: (mode: RobotMode) => void;
-  /** Movement commands latch on continuously until STOP or a new command
-   * overrides them (used by voice + typed chat, and by the Live page's
-   * hold buttons which relay to real hardware); gesture commands
-   * (NAMASTE/WAVE/LOOK/SPEAK) play a short one-shot animation. */
   sendCommand: (command: VoiceCommand) => void;
-  /** Press-and-hold movement for the on-screen D-pad / WASD: moves only
-   * while the corresponding flag is true, and axes can combine into an arc. */
   setDrive: (partial: Partial<DriveFlags>) => void;
   eventBus: AryaEventBus;
   navigationTarget: NavigationTarget | null;
   driveToStation: (stationId: string, position: Vector3Like) => void;
   cancelNavigation: () => void;
-  /** Automatic "Corridor Patrol": door -> corridor end -> door, hands-off. */
   patrolLeg: PatrolLeg;
   startPatrol: () => void;
   cancelPatrol: () => void;
@@ -41,46 +34,60 @@ interface RobotStateContextValue {
 
 const RobotStateContext = createContext<RobotStateContextValue | null>(null);
 
-// Manual/voice drive tuning — smooth accel/decel like a real differential
-// drive base, instead of a one-shot nudge per command.
-const MAX_SPEED = 1.6; // m/s
-const MAX_TURN = 100; // deg/s
+const MAX_SPEED = 1.6;
+const MAX_TURN = 100;
 const ACCEL = 3.2;
 const TURN_ACCEL = 4.5;
 
-// Autopilot tuning (station drive + corridor patrol).
-const AUTO_MOVE_SPEED = 1.3; // m/s
-const AUTO_TURN_SPEED = 140; // deg/s
-const ARRIVE_DISTANCE = 0.25; // meters
-const ARRIVE_HEADING = 4; // degrees
+const AUTO_MOVE_SPEED = 1.3;
+const AUTO_TURN_SPEED = 140;
+const ARRIVE_DISTANCE = 0.25;
+const ARRIVE_HEADING = 4;
 
 // Obstacle-avoidance tuning (walls, pillars, reception desk, anything
-// isWalkable() rejects). Instead of driving straight into something and
-// just stopping dead, we probe ahead each frame and steer around it.
-const AVOID_LOOKAHEAD = 0.9; // meters — how far ahead we "look" for obstacles
-const AVOID_PROBE_ANGLE = 35; // degrees off current heading, checked left/right
-const AVOID_TURN_SPEED = 110; // deg/s while steering around an obstacle
-const AVOID_SLOWDOWN = 0.35; // fraction of normal speed while steering around it
+// isWalkable() rejects). Used by BOTH manual/voice drive and the
+// autopilot/patrol branch below, so neither one just freezes when
+// blocked.
+const AVOID_LOOKAHEAD = 0.9;
+const AVOID_PROBE_ANGLE = 35;
+const AVOID_TURN_SPEED = 110;
+const AVOID_SLOWDOWN = 0.35;
 
 const GESTURE_COMMANDS = new Set<VoiceCommand>(["NAMASTE", "WAVE", "LOOK", "SPEAK"]);
 const BATTERY_DRAIN_INTERVAL_MS = 45_000;
 
-/** Forward vector for a given yaw (degrees): (sin, cos) — rotation 180
- * faces -Z, matching INITIAL_ROBOT_STATE and ChaseCamera's convention. */
 function forwardVector(rotationDeg: number) {
   const rad = (rotationDeg * Math.PI) / 180;
   return { x: Math.sin(rad), z: Math.cos(rad) };
 }
 
-/** Heading (degrees) to face to move straight toward (dx, dz), matching forwardVector. */
 function headingToDeg(dx: number, dz: number) {
   const deg = (Math.atan2(dx, dz) * 180) / Math.PI;
   return (deg + 360) % 360;
 }
 
-/** Shortest signed angle (deg) from `from` to `to`, in (-180, 180]. */
 function angleDiffDeg(from: number, to: number) {
   return ((to - from + 540) % 360) - 180;
+}
+
+/** Given a current heading, checks straight ahead for an obstacle/wall.
+ * If blocked, picks whichever of {left probe, right probe} is clear and
+ * returns a turn direction (+1 = left, -1 = right) to steer that way;
+ * returns null if the way ahead is clear. */
+function pickAvoidTurn(x: number, z: number, rotation: number): 1 | -1 | null {
+  const fv = forwardVector(rotation);
+  const aheadX = x + fv.x * AVOID_LOOKAHEAD;
+  const aheadZ = z + fv.z * AVOID_LOOKAHEAD;
+  if (isWalkable(aheadX, aheadZ)) return null;
+
+  const leftFv = forwardVector(rotation + AVOID_PROBE_ANGLE);
+  const rightFv = forwardVector(rotation - AVOID_PROBE_ANGLE);
+  const leftClear = isWalkable(x + leftFv.x * AVOID_LOOKAHEAD, z + leftFv.z * AVOID_LOOKAHEAD);
+  const rightClear = isWalkable(x + rightFv.x * AVOID_LOOKAHEAD, z + rightFv.z * AVOID_LOOKAHEAD);
+
+  if (leftClear && !rightClear) return 1;
+  if (rightClear && !leftClear) return -1;
+  return 1; // both/neither clear — default to steering left
 }
 
 export function RobotStateProvider({ children }: { children: ReactNode }) {
@@ -95,8 +102,8 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
   const patrolLegRef = useRef<PatrolLeg>(null);
 
   const driveRef = useRef<DriveFlags>({ fwd: false, back: false, left: false, right: false });
-  const curSpeedRef = useRef(0); // signed, +forward / -backward
-  const curTurnRef = useRef(0); // signed deg/s, +left / -right
+  const curSpeedRef = useRef(0);
+  const curTurnRef = useRef(0);
   const lastBatteryDrainRef = useRef(performance.now());
 
   const emit = useCallback((event: AryaEvent) => eventBusRef.current.emit(event), []);
@@ -132,7 +139,6 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
 
   const setDrive = useCallback(
     (partial: Partial<DriveFlags>) => {
-      // A manual drive input always takes priority over autopilot/patrol.
       if (navigationTargetRef.current) setNavigationTarget(null);
       if (patrolLegRef.current) setPatrol(null);
       driveRef.current = { ...driveRef.current, ...partial };
@@ -153,9 +159,6 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Movement commands latch on continuously: voice/chat has no natural
-      // "release", so "Arya, turn left" should actually keep turning until
-      // told to stop, not nudge a few degrees and quit.
       if (navigationTargetRef.current) setNavigationTarget(null);
       if (patrolLegRef.current) setPatrol(null);
       gestureActiveRef.current = false;
@@ -201,12 +204,6 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
     setNavigationTarget({ stationId: "patrol", position: CORRIDOR_END_POSITION });
   }, [hardStopDrive, setPatrol, setNavigationTarget]);
 
-  // ---------------------------------------------------------------------
-  // Single continuous game loop — drives BOTH manual/voice input and
-  // waypoint autopilot/patrol, so they never fight and every consumer
-  // (buttons, voice, chat, automatic patrol) sees the same smooth, real
-  // motion instead of a one-shot nudge.
-  // ---------------------------------------------------------------------
   useEffect(() => {
     let raf = 0;
     let last = performance.now();
@@ -229,7 +226,6 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
 
           if (distance < ARRIVE_DISTANCE) {
             if (patrolLegRef.current === "TO_CORRIDOR_END") {
-              // First leg complete — turn around and head back to the door.
               patrolLegRef.current = "TO_DOOR";
               setPatrolLeg("TO_DOOR");
               navigationTargetRef.current = { stationId: "patrol", position: DOOR_POSITION };
@@ -237,7 +233,6 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
               action = "MOVING";
               speed = 0;
             } else {
-              // Patrol's second leg, or a plain single-station drive, complete.
               if (patrolLegRef.current === "TO_DOOR") {
                 patrolLegRef.current = null;
                 setPatrolLeg(null);
@@ -249,64 +244,55 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
               emit({ type: "ROBOT_STOPPED", timestamp: Date.now() });
             }
           } else {
-            const desiredHeading = headingToDeg(dx, dz);
-            const diff = angleDiffDeg(rotation, desiredHeading);
+            // Obstacle check comes FIRST, before the heading-seek logic —
+            // this is the fix. Previously, hitting something here just
+            // set action = "IDLE" and stopped dead with no steering.
+            const avoidTurn = pickAvoidTurn(x, z, rotation);
 
-            if (Math.abs(diff) > ARRIVE_HEADING) {
-              const turnStep = Math.min(AUTO_TURN_SPEED * dt, Math.abs(diff)) * Math.sign(diff);
-              rotation = (rotation + turnStep + 360) % 360;
+            if (avoidTurn !== null) {
+              rotation = (rotation + avoidTurn * AVOID_TURN_SPEED * dt + 360) % 360;
               action = "TURNING";
               speed = 0;
+              emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command: avoidTurn === 1 ? "TURN_LEFT" : "TURN_RIGHT" } });
             } else {
-              const fv = forwardVector(rotation);
-              const moveStep = Math.min(AUTO_MOVE_SPEED * dt, distance);
-              const nx = x + fv.x * moveStep;
-              const nz = z + fv.z * moveStep;
-              // Autopilot (station drive / patrol) now respects the same
-              // wall + furniture collision as manual driving, instead of
-              // walking straight through the reception desk/pillars.
-              if (isWalkable(nx, nz)) {
-                x = nx; z = nz;
-                action = "MOVING";
-                speed = AUTO_MOVE_SPEED;
-              } else {
-                // Blocked mid-route — hold position and re-aim; the
-                // heading check above will naturally try a new angle
-                // once the target/robot geometry changes.
-                action = "IDLE";
+              const desiredHeading = headingToDeg(dx, dz);
+              const diff = angleDiffDeg(rotation, desiredHeading);
+
+              if (Math.abs(diff) > ARRIVE_HEADING) {
+                const turnStep = Math.min(AUTO_TURN_SPEED * dt, Math.abs(diff)) * Math.sign(diff);
+                rotation = (rotation + turnStep + 360) % 360;
+                action = "TURNING";
                 speed = 0;
+              } else {
+                const fv = forwardVector(rotation);
+                const moveStep = Math.min(AUTO_MOVE_SPEED * dt, distance);
+                const nx = x + fv.x * moveStep;
+                const nz = z + fv.z * moveStep;
+                if (isWalkable(nx, nz)) {
+                  x = nx; z = nz;
+                  action = "MOVING";
+                  speed = AUTO_MOVE_SPEED;
+                } else {
+                  action = "IDLE";
+                  speed = 0;
+                }
               }
             }
           }
           curSpeedRef.current = 0;
           curTurnRef.current = 0;
         } else {
-          // Manual / voice-latched continuous drive with smooth accel/decel.
           const di = driveRef.current;
           let targetSpeed = (di.fwd ? MAX_SPEED : 0) + (di.back ? -MAX_SPEED : 0);
           let targetTurn = (di.left ? MAX_TURN : 0) + (di.right ? -MAX_TURN : 0);
 
-          // Obstacle avoidance: if we're driving forward and something is
-          // directly ahead (wall, pillar, reception desk, anything
-          // isWalkable() rejects), automatically steer around it instead
-          // of ramming into it and just stopping dead.
           if (targetSpeed > 0) {
-            const fvNow = forwardVector(rotation);
-            const aheadX = x + fvNow.x * AVOID_LOOKAHEAD;
-            const aheadZ = z + fvNow.z * AVOID_LOOKAHEAD;
-            if (!isWalkable(aheadX, aheadZ)) {
-              const leftFv = forwardVector(rotation + AVOID_PROBE_ANGLE);
-              const rightFv = forwardVector(rotation - AVOID_PROBE_ANGLE);
-              const leftClear = isWalkable(x + leftFv.x * AVOID_LOOKAHEAD, z + leftFv.z * AVOID_LOOKAHEAD);
-              const rightClear = isWalkable(x + rightFv.x * AVOID_LOOKAHEAD, z + rightFv.z * AVOID_LOOKAHEAD);
-
-              if (leftClear && !rightClear) targetTurn = AVOID_TURN_SPEED;
-              else if (rightClear && !leftClear) targetTurn = -AVOID_TURN_SPEED;
-              else targetTurn = AVOID_TURN_SPEED; // both/neither clear — default to turning left
-
+            const avoidTurn = pickAvoidTurn(x, z, rotation);
+            if (avoidTurn !== null) {
+              targetTurn = avoidTurn * AVOID_TURN_SPEED;
               targetSpeed *= AVOID_SLOWDOWN;
               action = "TURNING";
-              emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command: "TURN_LEFT" } });
+              emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command: avoidTurn === 1 ? "TURN_LEFT" : "TURN_RIGHT" } });
             }
           }
 
@@ -333,19 +319,14 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
           if (moving) action = "MOVING";
           else if (turning) action = "TURNING";
           else if (!gestureActiveRef.current) action = "IDLE";
-          // else: a gesture is mid-animation — leave `action` alone.
         }
 
-                let battery = prev.battery;
+        let battery = prev.battery;
         if (now - lastBatteryDrainRef.current > BATTERY_DRAIN_INTERVAL_MS) {
           lastBatteryDrainRef.current = now;
           if (battery > 15) battery -= 1;
         }
 
-        // Distance actually driven this frame, from BOTH branches above
-        // (manual/voice drive and autopilot/patrol alike) -- so
-        // distanceTraveledM is one running total no matter which mode
-        // moved the robot.
         const stepDistance = Math.hypot(x - prev.position.x, z - prev.position.z);
         const distanceTraveledM = prev.distanceTraveledM + stepDistance;
 
@@ -383,4 +364,4 @@ export function useRobotState(): RobotStateContextValue {
   const ctx = useContext(RobotStateContext);
   if (!ctx) throw new Error("useRobotState must be used within a RobotStateProvider");
   return ctx;
-}
+} 
