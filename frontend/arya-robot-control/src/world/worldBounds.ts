@@ -13,21 +13,15 @@ export const WORLD = {
   bandH: 0.85,
 } as const;
 
-export const DOOR_POSITION = { x: 0, y: 0, z: 3.6 }; // just inside the entrance, clear of the chase camera's follow distance
+export const DOOR_POSITION = { x: 0, y: 0, z: 3.6 };
 export const CORRIDOR_END_POSITION = { x: 0, y: 0, z: WORLD.corrEndZ + 2.2 };
 
-/** Rectangular furniture/obstacle footprints (reception desk, pillars,
- * sofas) that live inside the lobby but were never part of wall
- * collision — the robot could walk straight through/into them. Positions
- * and rotations match CorridorEnvironment.build.ts's addReceptionDesk /
- * addPillarPlanter / addSofa calls. Tune halfW/halfD if the robot still
- * clips a corner. */
 interface RectObstacle {
   cx: number;
   cz: number;
-  halfW: number; // local half-width along the object's own X axis
-  halfD: number; // local half-depth along the object's own Z axis
-  rotY: number; // radians, matches the mesh's rotation.y
+  halfW: number;
+  halfD: number;
+  rotY: number;
 }
 
 const OBSTACLES: RectObstacle[] = [
@@ -38,15 +32,15 @@ const OBSTACLES: RectObstacle[] = [
   { cx: WORLD.lobbyHalfW - 1.6, cz: -0.6, halfW: 0.8, halfD: 0.5, rotY: -Math.PI / 2 }, // sofa
 ];
 
-/** True if (x, z) falls inside any obstacle's footprint, inflated by `pad`
- * (the robot's collision radius) so the robot stops/steers before its
- * body actually overlaps the mesh. */
-function inObstacle(x: number, z: number, pad: number): boolean {
+/** True if (x, z) is inside any furniture obstacle's footprint (inflated
+ * by `pad`, the robot's collision radius). Used ONLY to decide whether to
+ * trigger the steer-around behaviour — deliberately does NOT include the
+ * outer walls, since treating wall-following as "an obstacle to steer
+ * around" caused false triggers and pinning in the narrow corridor. */
+export function isBlockedByObstacle(x: number, z: number, pad = 0.34): boolean {
   return OBSTACLES.some((o) => {
     const dx = x - o.cx;
     const dz = z - o.cz;
-    // Rotate the point into the obstacle's local space so rotated
-    // furniture (desk, sofas) still gets an accurate axis-aligned test.
     const cos = Math.cos(-o.rotY);
     const sin = Math.sin(-o.rotY);
     const lx = dx * cos - dz * sin;
@@ -56,7 +50,9 @@ function inObstacle(x: number, z: number, pad: number): boolean {
 }
 
 /** True if (x, z) is inside the walkable lobby+corridor footprint AND
- * clear of furniture obstacles (reception desk, pillars, sofas). */
+ * clear of furniture. Used for actual movement validity (can the robot
+ * occupy this point at all) — includes both the outer walls and the
+ * furniture obstacles. */
 export function isWalkable(x: number, z: number, pad = 0.34): boolean {
   const inLobby =
     x > -WORLD.lobbyHalfW + pad &&
@@ -70,10 +66,9 @@ export function isWalkable(x: number, z: number, pad = 0.34): boolean {
     z > WORLD.corrEndZ + pad;
 
   if (!(inLobby || inCorr)) return false;
-  return !inObstacle(x, z, pad);
+  return !isBlockedByObstacle(x, z, pad);
 }
 
-/** Line segments (world-space) describing the building footprint, for the minimap. */
 export const FLOORPLAN_SEGMENTS: [number, number, number, number][] = (() => {
   const { lobbyHalfW: lw, lobbyFrontZ: cf, lobbyBackZ: cb, corrHalfW: ch, corrEndZ: ce } = WORLD;
   return [
@@ -87,4 +82,4 @@ export const FLOORPLAN_SEGMENTS: [number, number, number, number][] = (() => {
     [ch, cb, ch, ce],
     [-ch, ce, ch, ce],
   ];
-})(); 
+})();

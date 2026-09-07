@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { RobotMode, RobotState, VoiceCommand, Vector3Like } from "../types/robot";
 import { applyGesture, INITIAL_ROBOT_STATE, settleAction } from "../services/mock/mockRobot";
 import { AryaEventBus, type AryaEvent } from "../types/events";
-import { isWalkable, DOOR_POSITION, CORRIDOR_END_POSITION } from "../world/worldBounds";
+import { isWalkable, isBlockedByObstacle, DOOR_POSITION, CORRIDOR_END_POSITION } from "../world/worldBounds";
 
 export interface NavigationTarget {
   stationId: string;
@@ -44,10 +44,9 @@ const AUTO_TURN_SPEED = 140;
 const ARRIVE_DISTANCE = 0.25;
 const ARRIVE_HEADING = 4;
 
-// Obstacle-avoidance tuning (walls, pillars, reception desk, anything
-// isWalkable() rejects). Used by BOTH manual/voice drive and the
-// autopilot/patrol branch below, so neither one just freezes when
-// blocked.
+// Obstacle-avoidance tuning (furniture only — desk/pillars/sofas). Used by
+// both manual/voice drive and the autopilot/patrol branch, so neither one
+// just freezes when blocked.
 const AVOID_LOOKAHEAD = 0.9;
 const AVOID_PROBE_ANGLE = 35;
 const AVOID_TURN_SPEED = 110;
@@ -70,24 +69,28 @@ function angleDiffDeg(from: number, to: number) {
   return ((to - from + 540) % 360) - 180;
 }
 
-/** Given a current heading, checks straight ahead for an obstacle/wall.
- * If blocked, picks whichever of {left probe, right probe} is clear and
- * returns a turn direction (+1 = left, -1 = right) to steer that way;
- * returns null if the way ahead is clear. */
+/** Given a current heading, checks straight ahead for FURNITURE only
+ * (desk/pillars/sofas) — not the outer walls, since treating wall-following
+ * as "an obstacle to steer around" caused false triggers and pinning in
+ * the narrow corridor. Wall-following is left to the existing heading-seek
+ * (autopilot) / slide (manual) logic, which already handles it fine. */
 function pickAvoidTurn(x: number, z: number, rotation: number): 1 | -1 | null {
   const fv = forwardVector(rotation);
   const aheadX = x + fv.x * AVOID_LOOKAHEAD;
   const aheadZ = z + fv.z * AVOID_LOOKAHEAD;
-  if (isWalkable(aheadX, aheadZ)) return null;
+  if (!isBlockedByObstacle(aheadX, aheadZ)) return null;
 
   const leftFv = forwardVector(rotation + AVOID_PROBE_ANGLE);
   const rightFv = forwardVector(rotation - AVOID_PROBE_ANGLE);
-  const leftClear = isWalkable(x + leftFv.x * AVOID_LOOKAHEAD, z + leftFv.z * AVOID_LOOKAHEAD);
-  const rightClear = isWalkable(x + rightFv.x * AVOID_LOOKAHEAD, z + rightFv.z * AVOID_LOOKAHEAD);
+  const leftPX = x + leftFv.x * AVOID_LOOKAHEAD, leftPZ = z + leftFv.z * AVOID_LOOKAHEAD;
+  const rightPX = x + rightFv.x * AVOID_LOOKAHEAD, rightPZ = z + rightFv.z * AVOID_LOOKAHEAD;
+  const leftClear = !isBlockedByObstacle(leftPX, leftPZ) && isWalkable(leftPX, leftPZ);
+  const rightClear = !isBlockedByObstacle(rightPX, rightPZ) && isWalkable(rightPX, rightPZ);
 
   if (leftClear && !rightClear) return 1;
   if (rightClear && !leftClear) return -1;
-  return 1; // both/neither clear — default to steering left
+  if (leftClear && rightClear) return 1; // both open — arbitrary but consistent
+  return null; // boxed in on both sides — don't force a bad turn
 }
 
 export function RobotStateProvider({ children }: { children: ReactNode }) {
@@ -244,9 +247,6 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
               emit({ type: "ROBOT_STOPPED", timestamp: Date.now() });
             }
           } else {
-            // Obstacle check comes FIRST, before the heading-seek logic —
-            // this is the fix. Previously, hitting something here just
-            // set action = "IDLE" and stopped dead with no steering.
             const avoidTurn = pickAvoidTurn(x, z, rotation);
 
             if (avoidTurn !== null) {
@@ -364,4 +364,4 @@ export function useRobotState(): RobotStateContextValue {
   const ctx = useContext(RobotStateContext);
   if (!ctx) throw new Error("useRobotState must be used within a RobotStateProvider");
   return ctx;
-} 
+}
