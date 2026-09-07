@@ -26,6 +26,7 @@ export const ENDPOINTS = {
   visionMjpeg: `${API_BASE_URL}/api/vision/mjpeg`,
   visionState: `${API_BASE_URL}/api/vision/state`,
   visionSocket: `${WS_BASE_URL}/ws/vision`,
+  visionClientSocket: `${WS_BASE_URL}/ws/vision-client`,
   chat: `${API_BASE_URL}/api/chat`,
   robotCommand: `${API_BASE_URL}/api/robot/command`,
 };

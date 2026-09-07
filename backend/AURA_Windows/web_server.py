@@ -24,6 +24,7 @@
    GET  /api/vision/mjpeg    live annotated camera stream (MJPEG)
    GET  /api/vision/state    one-shot {objects, people, log} snapshot
    WS   /ws/vision            pushes that same snapshot ~every 0.7s
+   WS   /ws/vision-client     client-camera frame in -> annotated frame out
    POST /api/chat            {message} -> ARYA's reply (see chat_service.py)
    POST /api/robot/command   {command} -> movement/gesture (simulated
                               unless ENABLE_GPIO=true and this is
@@ -171,6 +172,34 @@ async def ws_vision(websocket: WebSocket):
         pass
     except Exception as e:
         print(f"[Web] /ws/vision error: {e}")
+
+
+@app.websocket("/ws/vision-client")
+async def ws_vision_client(websocket: WebSocket):
+    """Receives JPEG frames captured by a BROWSER's own camera
+    (frontend: hooks/useClientCamera.ts), runs each one through
+    VisionService.process_client_frame (same YOLO + InsightFace
+    pipeline the server webcam uses), and streams the annotated JPEG
+    back so "My Camera" mode looks identical to "Server Webcam" mode.
+    Detection is CPU/GPU-bound and synchronous, so it's offloaded to a
+    worker thread via asyncio.to_thread to avoid blocking the event
+    loop (and therefore every other request/socket this server
+    handles) while a frame is being processed.
+    """
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_bytes()
+            frame = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+            if frame is None:
+                continue
+            annotated_jpeg = await asyncio.to_thread(vision.process_client_frame, frame)
+            if annotated_jpeg:
+                await websocket.send_bytes(annotated_jpeg)
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"[Web] /ws/vision-client error: {e}")
 
 
 # ══════════════════════════════════════════════════════════════════════

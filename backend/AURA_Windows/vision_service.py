@@ -550,6 +550,36 @@ class VisionService:
         with self._frame_lock:
             return self._latest_jpeg
 
+    def process_client_frame(self, frame: np.ndarray) -> bytes:
+        """Full detect + recognize + annotate pass on a single frame that
+        came from a BROWSER's own camera (see WS /ws/vision-client in
+        web_server.py) instead of this backend's local webcam loop. Runs
+        synchronously and returns annotated JPEG bytes to send straight
+        back to that browser tab.
+
+        Writes into the exact same self._objects / self._people / self._log
+        state _loop() does, so GET /api/vision/state, WS /ws/vision, and
+        every panel that reads from them (RecognizedPeople, VisionObjects,
+        the greeting/Namaste flow) keep working unchanged -- they don't
+        know or care which camera produced the update.
+
+        NOTE: if the local webcam loop is ALSO still running in the
+        background while a browser is submitting frames here (e.g. someone
+        left "Server Webcam" mode's camera open and then switched the
+        frontend to "My Camera"), both write into the same registry. Fine
+        for a single-operator demo, but avoid running both at once against
+        two different physical scenes.
+        """
+        persons, objects_raw = self._detect(frame)
+        faces = self._match_faces(frame)
+        self._update_registry(persons, faces, frame.shape)
+        self._update_objects(objects_raw, frame.shape)
+        annotated = self._annotate(frame, persons, faces)
+        self._sweep_absent()
+        ok, buf = cv2.imencode(
+            ".jpg", annotated, [int(cv2.IMWRITE_JPEG_QUALITY), Config.JPEG_QUALITY])
+        return buf.tobytes() if ok else b""
+
     @staticmethod
     def _public_person(record: dict) -> dict:
         return {k: v for k, v in record.items() if not k.startswith("_")}

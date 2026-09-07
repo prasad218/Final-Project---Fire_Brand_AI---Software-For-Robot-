@@ -14,7 +14,7 @@ interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { id: "home", label: "Home", icon: <Home size={18} /> },
-  { id: "live", label: "VCET Live Demo", icon: <Video size={18} /> },
+  { id: "live", label: "VCET Live", icon: <Video size={18} /> },
   { id: "simulation", label: "3D Simulation", icon: <Box size={18} /> },
   { id: "talk", label: "Talk with ARYA", icon: <MessageCircle size={18} /> },
 ];

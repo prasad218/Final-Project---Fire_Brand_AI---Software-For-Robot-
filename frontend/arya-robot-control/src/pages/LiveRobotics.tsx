@@ -7,7 +7,6 @@ import { useKeyboardDrive } from "../hooks/useKeyboardDrive";
 import { LiveCamera } from "../components/live/LiveCamera";
 import { VoiceCommandPanel } from "../components/live/VoiceCommandPanel";
 import { MovementControls } from "../components/live/MovementControls";
-import { VisionObjects } from "../components/live/VisionObjects";
 import { RecognizedPeople } from "../components/live/RecognizedPeople";
 import { LiveRobotLog } from "../components/live/LiveRobotLog";
 import { RobotDigitalTwin } from "../components/live/RobotDigitalTwin";
@@ -99,7 +98,7 @@ export function LiveRobotics() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>VCET Live Demo</h1>
+          <h1 className={styles.title}>VCET Live </h1>
           <p className={styles.subtitle}>
             Real-time perception and control — object detection, person detection, and face
             recognition run live on ARYA's backend at VCET.
@@ -165,8 +164,6 @@ export function LiveRobotics() {
               showStationList={false}
             />
           )}
-
-          <VisionObjects objects={objects} />
           <RecognizedPeople people={people} />
         </div>
       </div>

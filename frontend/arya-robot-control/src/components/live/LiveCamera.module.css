@@ -114,3 +114,65 @@
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
 }
+
+.sourceToggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+  background: rgba(4, 7, 13, 0.65);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.sourceBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sourceBtn:hover {
+  color: var(--text-secondary);
+}
+
+.sourceBtnActive {
+  background: rgba(56, 211, 255, 0.15);
+  color: var(--cyan);
+}
+
+.flipBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.flipBtn:hover {
+  color: var(--cyan);
+}
+
+.hiddenCapture {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
