@@ -49,12 +49,6 @@ const ARRIVE_DISTANCE = 0.25;
 const OBSTACLE_INFLUENCE_RADIUS = 1.4; // meters — how far out furniture starts influencing steering
 const REPULSION_TURN_GAIN = 3; // how sharply repulsion bends the heading
 
-// Mirrors the real robot's backend auto-stop (vivek_common.py:
-// MOVE_AUTO_STOP_SEC, default 4.0s) — voice-triggered move/turn commands
-// here now release themselves the same way, so the on-screen digital twin
-// stops in sync with the physical robot instead of continuing forever.
-const VOICE_COMMAND_AUTO_STOP_MS = 4000;
-
 function forwardVector(rotationDeg: number) {
   const rad = (rotationDeg * Math.PI) / 180;
   return { x: Math.sin(rad), z: Math.cos(rad) };
@@ -92,7 +86,6 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
   const eventBusRef = useRef(new AryaEventBus());
   const gestureSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gestureActiveRef = useRef(false);
-  const voiceCommandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [navigationTarget, setNavigationTargetState] = useState<NavigationTarget | null>(null);
   const navigationTargetRef = useRef<NavigationTarget | null>(null);
@@ -161,33 +154,22 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
       if (patrolLegRef.current) setPatrol(null);
       gestureActiveRef.current = false;
 
-      // Every new movement command resets the auto-stop clock — same as
-      // the real robot's backend timer, which restarts on each fresh command.
-      if (voiceCommandTimerRef.current) {
-        clearTimeout(voiceCommandTimerRef.current);
-        voiceCommandTimerRef.current = null;
-      }
-
       switch (command) {
         case "MOVE_FORWARD":
           driveRef.current = { ...driveRef.current, fwd: true, back: false };
           emit({ type: "ROBOT_MOVING", timestamp: Date.now(), payload: { command } });
-          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "MOVE_BACKWARD":
           driveRef.current = { ...driveRef.current, fwd: false, back: true };
           emit({ type: "ROBOT_MOVING", timestamp: Date.now(), payload: { command } });
-          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "TURN_LEFT":
           driveRef.current = { ...driveRef.current, left: true, right: false };
           emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command } });
-          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "TURN_RIGHT":
           driveRef.current = { ...driveRef.current, left: false, right: true };
           emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command } });
-          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "STOP":
           hardStopDrive();
@@ -253,6 +235,11 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
               emit({ type: "ROBOT_STOPPED", timestamp: Date.now() });
             }
           } else {
+            // Continuous steering: blend "face the target" with "steer
+            // away from nearby furniture" into one heading, then ALWAYS
+            // move forward (slower when turning sharply or near an
+            // obstacle) — no separate align-then-move phases, so there's
+            // no state where it can get stuck frozen.
             const desiredHeading = headingToDeg(dx, dz);
             const { heading: steerHeading, repMag } = blendWithRepulsion(x, z, desiredHeading);
             const diff = angleDiffDeg(rotation, steerHeading);
@@ -280,6 +267,9 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
               action = "MOVING";
               speed = moveSpeed;
             } else {
+              // Genuinely can't move this exact frame — still keep
+              // turning toward steerHeading, which changes every frame as
+              // repulsion shifts, so this is never a permanent stall.
               action = "TURNING";
               speed = 0;
             }
@@ -371,4 +361,4 @@ export function useRobotState(): RobotStateContextValue {
   const ctx = useContext(RobotStateContext);
   if (!ctx) throw new Error("useRobotState must be used within a RobotStateProvider");
   return ctx;
-} 
+}
