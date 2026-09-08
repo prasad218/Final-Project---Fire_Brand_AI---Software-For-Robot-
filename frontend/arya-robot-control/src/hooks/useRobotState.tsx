@@ -154,21 +154,26 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
       if (patrolLegRef.current) setPatrol(null);
       gestureActiveRef.current = false;
 
+      // Every voice/typed command fully replaces the drive state instead
+      // of merging with whatever was left over — previously TURN_LEFT only
+      // cleared `right`, leaving a stale `fwd` (or vice versa) active from
+      // an earlier command, which produced curving/zigzag paths when
+      // commands were issued close together.
       switch (command) {
         case "MOVE_FORWARD":
-          driveRef.current = { ...driveRef.current, fwd: true, back: false };
+          driveRef.current = { fwd: true, back: false, left: false, right: false };
           emit({ type: "ROBOT_MOVING", timestamp: Date.now(), payload: { command } });
           break;
         case "MOVE_BACKWARD":
-          driveRef.current = { ...driveRef.current, fwd: false, back: true };
+          driveRef.current = { fwd: false, back: true, left: false, right: false };
           emit({ type: "ROBOT_MOVING", timestamp: Date.now(), payload: { command } });
           break;
         case "TURN_LEFT":
-          driveRef.current = { ...driveRef.current, left: true, right: false };
+          driveRef.current = { fwd: false, back: false, left: true, right: false };
           emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command } });
           break;
         case "TURN_RIGHT":
-          driveRef.current = { ...driveRef.current, left: false, right: true };
+          driveRef.current = { fwd: false, back: false, left: false, right: true };
           emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command } });
           break;
         case "STOP":
@@ -235,11 +240,6 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
               emit({ type: "ROBOT_STOPPED", timestamp: Date.now() });
             }
           } else {
-            // Continuous steering: blend "face the target" with "steer
-            // away from nearby furniture" into one heading, then ALWAYS
-            // move forward (slower when turning sharply or near an
-            // obstacle) — no separate align-then-move phases, so there's
-            // no state where it can get stuck frozen.
             const desiredHeading = headingToDeg(dx, dz);
             const { heading: steerHeading, repMag } = blendWithRepulsion(x, z, desiredHeading);
             const diff = angleDiffDeg(rotation, steerHeading);
@@ -267,9 +267,6 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
               action = "MOVING";
               speed = moveSpeed;
             } else {
-              // Genuinely can't move this exact frame — still keep
-              // turning toward steerHeading, which changes every frame as
-              // repulsion shifts, so this is never a permanent stall.
               action = "TURNING";
               speed = 0;
             }
