@@ -43,11 +43,15 @@ const AUTO_MOVE_SPEED = 1.3;
 const AUTO_TURN_SPEED = 140;
 const ARRIVE_DISTANCE = 0.25;
 
-// Obstacle-avoidance tuning. The robot blends "head toward target/where
-// the user is steering" with "steer away from nearby furniture" into one
-// continuous heading every frame, instead of separate avoid/seek modes.
-const OBSTACLE_INFLUENCE_RADIUS = 1.4; // meters — how far out furniture starts influencing steering
-const REPULSION_TURN_GAIN = 3; // how sharply repulsion bends the heading
+const OBSTACLE_INFLUENCE_RADIUS = 1.4;
+const REPULSION_TURN_GAIN = 3;
+
+// A single voice command ("Arya, move forward") should be a bounded
+// action, not last forever — this mirrors the real robot's backend
+// auto-stop (vivek_common.py: MOVE_AUTO_STOP_SEC, default 4.0s). Without
+// this, "move forward" would drive straight into whatever was ahead
+// (like the corridor wall) with no way to stop except saying "stop".
+const VOICE_COMMAND_AUTO_STOP_MS = 4000;
 
 function forwardVector(rotationDeg: number) {
   const rad = (rotationDeg * Math.PI) / 180;
@@ -63,10 +67,6 @@ function angleDiffDeg(from: number, to: number) {
   return ((to - from + 540) % 360) - 180;
 }
 
-/** Blends a "desired heading" (where we want to go) with repulsion from
- * nearby furniture (where we should NOT go), producing one steering
- * heading. When nothing is nearby this just returns desiredHeading
- * unchanged. */
 function blendWithRepulsion(x: number, z: number, desiredHeading: number): { heading: number; repMag: number } {
   const { rx, rz } = obstacleRepulsion(x, z, OBSTACLE_INFLUENCE_RADIUS);
   const repMag = Math.hypot(rx, rz);
@@ -86,6 +86,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
   const eventBusRef = useRef(new AryaEventBus());
   const gestureSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gestureActiveRef = useRef(false);
+  const voiceCommandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [navigationTarget, setNavigationTargetState] = useState<NavigationTarget | null>(null);
   const navigationTargetRef = useRef<NavigationTarget | null>(null);
@@ -154,27 +155,35 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
       if (patrolLegRef.current) setPatrol(null);
       gestureActiveRef.current = false;
 
-      // Every voice/typed command fully replaces the drive state instead
-      // of merging with whatever was left over — previously TURN_LEFT only
-      // cleared `right`, leaving a stale `fwd` (or vice versa) active from
-      // an earlier command, which produced curving/zigzag paths when
-      // commands were issued close together.
+      if (voiceCommandTimerRef.current) {
+        clearTimeout(voiceCommandTimerRef.current);
+        voiceCommandTimerRef.current = null;
+      }
+
+      // Every command fully replaces the drive state (not merged with
+      // whatever was left over) AND auto-releases after
+      // VOICE_COMMAND_AUTO_STOP_MS — so a single "move forward" is a
+      // bounded action, not indefinite, and never lingers into the next command.
       switch (command) {
         case "MOVE_FORWARD":
           driveRef.current = { fwd: true, back: false, left: false, right: false };
           emit({ type: "ROBOT_MOVING", timestamp: Date.now(), payload: { command } });
+          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "MOVE_BACKWARD":
           driveRef.current = { fwd: false, back: true, left: false, right: false };
           emit({ type: "ROBOT_MOVING", timestamp: Date.now(), payload: { command } });
+          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "TURN_LEFT":
           driveRef.current = { fwd: false, back: false, left: true, right: false };
           emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command } });
+          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "TURN_RIGHT":
           driveRef.current = { fwd: false, back: false, left: false, right: true };
           emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command } });
+          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "STOP":
           hardStopDrive();
