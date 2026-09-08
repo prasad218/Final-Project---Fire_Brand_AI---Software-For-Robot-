@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { RobotMode, RobotState, VoiceCommand, Vector3Like } from "../types/robot";
 import { applyGesture, INITIAL_ROBOT_STATE, settleAction } from "../services/mock/mockRobot";
 import { AryaEventBus, type AryaEvent } from "../types/events";
-import { isWalkable, isBlockedByObstacle, DOOR_POSITION, CORRIDOR_END_POSITION } from "../world/worldBounds";
+import { isWalkable, obstacleRepulsion, DOOR_POSITION, CORRIDOR_END_POSITION } from "../world/worldBounds";
 
 export interface NavigationTarget {
   stationId: string;
@@ -42,18 +42,12 @@ const TURN_ACCEL = 4.5;
 const AUTO_MOVE_SPEED = 1.3;
 const AUTO_TURN_SPEED = 140;
 const ARRIVE_DISTANCE = 0.25;
-const ARRIVE_HEADING = 4;
 
-// Obstacle-avoidance tuning (furniture only — desk/pillars/sofas). Used by
-// both manual/voice drive and the autopilot/patrol branch, so neither one
-// just freezes when blocked.
-const AVOID_LOOKAHEAD = 0.9;
-const AVOID_PROBE_ANGLE = 35;
-const AVOID_TURN_SPEED = 110;
-const AVOID_SLOWDOWN = 0.35;
-
-const GESTURE_COMMANDS = new Set<VoiceCommand>(["NAMASTE", "WAVE", "LOOK", "SPEAK"]);
-const BATTERY_DRAIN_INTERVAL_MS = 45_000;
+// Obstacle-avoidance tuning. The robot blends "head toward target/where
+// the user is steering" with "steer away from nearby furniture" into one
+// continuous heading every frame, instead of separate avoid/seek modes.
+const OBSTACLE_INFLUENCE_RADIUS = 1.4; // meters — how far out furniture starts influencing steering
+const REPULSION_TURN_GAIN = 3; // how sharply repulsion bends the heading
 
 function forwardVector(rotationDeg: number) {
   const rad = (rotationDeg * Math.PI) / 180;
@@ -69,29 +63,23 @@ function angleDiffDeg(from: number, to: number) {
   return ((to - from + 540) % 360) - 180;
 }
 
-/** Given a current heading, checks straight ahead for FURNITURE only
- * (desk/pillars/sofas) — not the outer walls, since treating wall-following
- * as "an obstacle to steer around" caused false triggers and pinning in
- * the narrow corridor. Wall-following is left to the existing heading-seek
- * (autopilot) / slide (manual) logic, which already handles it fine. */
-function pickAvoidTurn(x: number, z: number, rotation: number): 1 | -1 | null {
-  const fv = forwardVector(rotation);
-  const aheadX = x + fv.x * AVOID_LOOKAHEAD;
-  const aheadZ = z + fv.z * AVOID_LOOKAHEAD;
-  if (!isBlockedByObstacle(aheadX, aheadZ)) return null;
-
-  const leftFv = forwardVector(rotation + AVOID_PROBE_ANGLE);
-  const rightFv = forwardVector(rotation - AVOID_PROBE_ANGLE);
-  const leftPX = x + leftFv.x * AVOID_LOOKAHEAD, leftPZ = z + leftFv.z * AVOID_LOOKAHEAD;
-  const rightPX = x + rightFv.x * AVOID_LOOKAHEAD, rightPZ = z + rightFv.z * AVOID_LOOKAHEAD;
-  const leftClear = !isBlockedByObstacle(leftPX, leftPZ) && isWalkable(leftPX, leftPZ);
-  const rightClear = !isBlockedByObstacle(rightPX, rightPZ) && isWalkable(rightPX, rightPZ);
-
-  if (leftClear && !rightClear) return 1;
-  if (rightClear && !leftClear) return -1;
-  if (leftClear && rightClear) return 1; // both open — arbitrary but consistent
-  return null; // boxed in on both sides — don't force a bad turn
+/** Blends a "desired heading" (where we want to go) with repulsion from
+ * nearby furniture (where we should NOT go), producing one steering
+ * heading. When nothing is nearby this just returns desiredHeading
+ * unchanged. */
+function blendWithRepulsion(x: number, z: number, desiredHeading: number): { heading: number; repMag: number } {
+  const { rx, rz } = obstacleRepulsion(x, z, OBSTACLE_INFLUENCE_RADIUS);
+  const repMag = Math.hypot(rx, rz);
+  if (repMag < 0.03) return { heading: desiredHeading, repMag: 0 };
+  const repHeading = headingToDeg(rx, rz);
+  const diffRep = angleDiffDeg(desiredHeading, repHeading);
+  const blend = Math.min(1, repMag);
+  const heading = (desiredHeading + diffRep * blend + 360) % 360;
+  return { heading, repMag };
 }
+
+const GESTURE_COMMANDS = new Set<VoiceCommand>(["NAMASTE", "WAVE", "LOOK", "SPEAK"]);
+const BATTERY_DRAIN_INTERVAL_MS = 45_000;
 
 export function RobotStateProvider({ children }: { children: ReactNode }) {
   const [robot, setRobot] = useState<RobotState>(INITIAL_ROBOT_STATE);
@@ -247,36 +235,43 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
               emit({ type: "ROBOT_STOPPED", timestamp: Date.now() });
             }
           } else {
-            const avoidTurn = pickAvoidTurn(x, z, rotation);
+            // Continuous steering: blend "face the target" with "steer
+            // away from nearby furniture" into one heading, then ALWAYS
+            // move forward (slower when turning sharply or near an
+            // obstacle) — no separate align-then-move phases, so there's
+            // no state where it can get stuck frozen.
+            const desiredHeading = headingToDeg(dx, dz);
+            const { heading: steerHeading, repMag } = blendWithRepulsion(x, z, desiredHeading);
+            const diff = angleDiffDeg(rotation, steerHeading);
+            const turnStep = Math.max(-AUTO_TURN_SPEED * dt, Math.min(AUTO_TURN_SPEED * dt, diff));
+            rotation = (rotation + turnStep + 360) % 360;
 
-            if (avoidTurn !== null) {
-              rotation = (rotation + avoidTurn * AVOID_TURN_SPEED * dt + 360) % 360;
+            const turnFactor = Math.max(0.25, 1 - Math.abs(diff) / 90);
+            const speedFactor = Math.max(0.3, 1 - repMag * 0.6);
+            const moveSpeed = AUTO_MOVE_SPEED * turnFactor * speedFactor;
+            const fv = forwardVector(rotation);
+            const moveStep = Math.min(moveSpeed * dt, distance);
+            const nx = x + fv.x * moveStep;
+            const nz = z + fv.z * moveStep;
+
+            if (isWalkable(nx, nz)) {
+              x = nx; z = nz;
+              action = Math.abs(diff) > 15 ? "TURNING" : "MOVING";
+              speed = moveSpeed;
+            } else if (isWalkable(nx, z)) {
+              x = nx;
+              action = "MOVING";
+              speed = moveSpeed;
+            } else if (isWalkable(x, nz)) {
+              z = nz;
+              action = "MOVING";
+              speed = moveSpeed;
+            } else {
+              // Genuinely can't move this exact frame — still keep
+              // turning toward steerHeading, which changes every frame as
+              // repulsion shifts, so this is never a permanent stall.
               action = "TURNING";
               speed = 0;
-              emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command: avoidTurn === 1 ? "TURN_LEFT" : "TURN_RIGHT" } });
-            } else {
-              const desiredHeading = headingToDeg(dx, dz);
-              const diff = angleDiffDeg(rotation, desiredHeading);
-
-              if (Math.abs(diff) > ARRIVE_HEADING) {
-                const turnStep = Math.min(AUTO_TURN_SPEED * dt, Math.abs(diff)) * Math.sign(diff);
-                rotation = (rotation + turnStep + 360) % 360;
-                action = "TURNING";
-                speed = 0;
-              } else {
-                const fv = forwardVector(rotation);
-                const moveStep = Math.min(AUTO_MOVE_SPEED * dt, distance);
-                const nx = x + fv.x * moveStep;
-                const nz = z + fv.z * moveStep;
-                if (isWalkable(nx, nz)) {
-                  x = nx; z = nz;
-                  action = "MOVING";
-                  speed = AUTO_MOVE_SPEED;
-                } else {
-                  action = "IDLE";
-                  speed = 0;
-                }
-              }
             }
           }
           curSpeedRef.current = 0;
@@ -287,12 +282,14 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
           let targetTurn = (di.left ? MAX_TURN : 0) + (di.right ? -MAX_TURN : 0);
 
           if (targetSpeed > 0) {
-            const avoidTurn = pickAvoidTurn(x, z, rotation);
-            if (avoidTurn !== null) {
-              targetTurn = avoidTurn * AVOID_TURN_SPEED;
-              targetSpeed *= AVOID_SLOWDOWN;
+            const { rx, rz } = obstacleRepulsion(x, z, OBSTACLE_INFLUENCE_RADIUS);
+            const repMag = Math.hypot(rx, rz);
+            if (repMag > 0.03) {
+              const repHeading = headingToDeg(rx, rz);
+              const diff = angleDiffDeg(rotation, repHeading);
+              targetTurn += Math.max(-MAX_TURN, Math.min(MAX_TURN, diff * REPULSION_TURN_GAIN));
+              targetSpeed *= Math.max(0.3, 1 - repMag * 0.6);
               action = "TURNING";
-              emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command: avoidTurn === 1 ? "TURN_LEFT" : "TURN_RIGHT" } });
             }
           }
 
