@@ -18,6 +18,12 @@ export interface DriveFlags {
 
 export type PatrolLeg = "TO_CORRIDOR_END" | "TO_DOOR" | null;
 
+interface MoveNudge {
+  remaining: number; // meters left to travel
+  dir: 1 | -1; // +1 forward, -1 backward
+  elapsed: number; // seconds, safety cap
+}
+
 interface RobotStateContextValue {
   robot: RobotState;
   setMode: (mode: RobotMode) => void;
@@ -46,12 +52,19 @@ const ARRIVE_DISTANCE = 0.25;
 const OBSTACLE_INFLUENCE_RADIUS = 1.4;
 const REPULSION_TURN_GAIN = 3;
 
-// A single voice command ("Arya, move forward") should be a bounded
-// action, not last forever — this mirrors the real robot's backend
-// auto-stop (vivek_common.py: MOVE_AUTO_STOP_SEC, default 4.0s). Without
-// this, "move forward" would drive straight into whatever was ahead
-// (like the corridor wall) with no way to stop except saying "stop".
+// "Arya, turn left/right" keeps latching + auto-releasing after this
+// long, matching the real robot's backend timer (vivek_common.py:
+// MOVE_AUTO_STOP_SEC) — this part works correctly per your testing, left
+// unchanged.
 const VOICE_COMMAND_AUTO_STOP_MS = 4000;
+
+// "Arya, move forward/backward" is now a bounded NUDGE, not a continuous
+// drive — it walks a short fixed distance ("2-3 steps") and stops itself,
+// like a one-shot gesture, instead of latching until "stop" or drifting
+// into a zigzag from leftover state.
+const MOVE_NUDGE_DISTANCE = 1.2; // meters — roughly 2-3 steps
+const MOVE_NUDGE_SPEED = 1.4; // m/s
+const MOVE_NUDGE_MAX_SEC = 3; // safety cap in case something blocks it
 
 function forwardVector(rotationDeg: number) {
   const rad = (rotationDeg * Math.PI) / 180;
@@ -87,6 +100,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
   const gestureSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gestureActiveRef = useRef(false);
   const voiceCommandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const moveNudgeRef = useRef<MoveNudge | null>(null);
 
   const [navigationTarget, setNavigationTargetState] = useState<NavigationTarget | null>(null);
   const navigationTargetRef = useRef<NavigationTarget | null>(null);
@@ -118,6 +132,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
     driveRef.current = { fwd: false, back: false, left: false, right: false };
     curSpeedRef.current = 0;
     curTurnRef.current = 0;
+    moveNudgeRef.current = null;
   }, []);
 
   const cancelNavigation = useCallback(() => {
@@ -133,6 +148,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
     (partial: Partial<DriveFlags>) => {
       if (navigationTargetRef.current) setNavigationTarget(null);
       if (patrolLegRef.current) setPatrol(null);
+      moveNudgeRef.current = null; // a manual button press overrides any in-progress voice nudge
       driveRef.current = { ...driveRef.current, ...partial };
     },
     [setNavigationTarget, setPatrol],
@@ -159,21 +175,20 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
         clearTimeout(voiceCommandTimerRef.current);
         voiceCommandTimerRef.current = null;
       }
+      // Every new command cancels any drive flags AND any in-progress
+      // nudge first, so nothing from a previous command can linger and
+      // combine with the new one (that's what caused the zigzag before).
+      driveRef.current = { fwd: false, back: false, left: false, right: false };
+      moveNudgeRef.current = null;
 
-      // Every command fully replaces the drive state (not merged with
-      // whatever was left over) AND auto-releases after
-      // VOICE_COMMAND_AUTO_STOP_MS — so a single "move forward" is a
-      // bounded action, not indefinite, and never lingers into the next command.
       switch (command) {
         case "MOVE_FORWARD":
-          driveRef.current = { fwd: true, back: false, left: false, right: false };
+          moveNudgeRef.current = { remaining: MOVE_NUDGE_DISTANCE, dir: 1, elapsed: 0 };
           emit({ type: "ROBOT_MOVING", timestamp: Date.now(), payload: { command } });
-          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "MOVE_BACKWARD":
-          driveRef.current = { fwd: false, back: true, left: false, right: false };
+          moveNudgeRef.current = { remaining: MOVE_NUDGE_DISTANCE, dir: -1, elapsed: 0 };
           emit({ type: "ROBOT_MOVING", timestamp: Date.now(), payload: { command } });
-          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "TURN_LEFT":
           driveRef.current = { fwd: false, back: false, left: true, right: false };
@@ -279,6 +294,50 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
               action = "TURNING";
               speed = 0;
             }
+          }
+          curSpeedRef.current = 0;
+          curTurnRef.current = 0;
+        } else if (moveNudgeRef.current) {
+          // Bounded voice "move forward/backward" — walks a fixed
+          // distance in a straight line (with light obstacle steering)
+          // then stops on its own, no timer or "stop" command needed.
+          const nudge = moveNudgeRef.current;
+          const { rx, rz } = obstacleRepulsion(x, z, OBSTACLE_INFLUENCE_RADIUS);
+          const repMag = Math.hypot(rx, rz);
+          if (repMag > 0.03) {
+            const repHeading = headingToDeg(rx, rz);
+            const diff = angleDiffDeg(rotation, repHeading);
+            const turnStep = Math.max(-AUTO_TURN_SPEED * dt, Math.min(AUTO_TURN_SPEED * dt, diff));
+            rotation = (rotation + turnStep + 360) % 360;
+          }
+
+          const speedFactor = Math.max(0.3, 1 - repMag * 0.6);
+          const moveSpeed = MOVE_NUDGE_SPEED * speedFactor;
+          const fv = forwardVector(rotation);
+          const moveStep = Math.min(moveSpeed * dt, nudge.remaining);
+          const nx = x + fv.x * moveStep * nudge.dir;
+          const nz = z + fv.z * moveStep * nudge.dir;
+
+          let moved = 0;
+          if (isWalkable(nx, nz)) {
+            x = nx; z = nz; moved = moveStep;
+          } else if (isWalkable(nx, z)) {
+            x = nx; moved = moveStep;
+          } else if (isWalkable(x, nz)) {
+            z = nz; moved = moveStep;
+          }
+
+          nudge.remaining -= moved;
+          nudge.elapsed += dt;
+
+          if (nudge.remaining <= 0.02 || nudge.elapsed > MOVE_NUDGE_MAX_SEC) {
+            moveNudgeRef.current = null;
+            action = "IDLE";
+            speed = 0;
+            emit({ type: "ROBOT_STOPPED", timestamp: Date.now() });
+          } else {
+            action = "MOVING";
+            speed = moveSpeed;
           }
           curSpeedRef.current = 0;
           curTurnRef.current = 0;
