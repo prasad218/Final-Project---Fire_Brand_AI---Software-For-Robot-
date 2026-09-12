@@ -58,10 +58,9 @@ const REPULSION_TURN_GAIN = 3;
 // unchanged.
 const VOICE_COMMAND_AUTO_STOP_MS = 4000;
 
-// "Arya, move forward/backward" is now a bounded NUDGE, not a continuous
+// "Arya, move forward/backward" is a bounded NUDGE, not a continuous
 // drive — it walks a short fixed distance ("2-3 steps") and stops itself,
-// like a one-shot gesture, instead of latching until "stop" or drifting
-// into a zigzag from leftover state.
+// like a one-shot gesture.
 const MOVE_NUDGE_DISTANCE = 1.2; // meters — roughly 2-3 steps
 const MOVE_NUDGE_SPEED = 1.4; // m/s
 const MOVE_NUDGE_MAX_SEC = 3; // safety cap in case something blocks it
@@ -148,7 +147,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
     (partial: Partial<DriveFlags>) => {
       if (navigationTargetRef.current) setNavigationTarget(null);
       if (patrolLegRef.current) setPatrol(null);
-      moveNudgeRef.current = null; // a manual button press overrides any in-progress voice nudge
+      moveNudgeRef.current = null;
       driveRef.current = { ...driveRef.current, ...partial };
     },
     [setNavigationTarget, setPatrol],
@@ -175,9 +174,6 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
         clearTimeout(voiceCommandTimerRef.current);
         voiceCommandTimerRef.current = null;
       }
-      // Every new command cancels any drive flags AND any in-progress
-      // nudge first, so nothing from a previous command can linger and
-      // combine with the new one (that's what caused the zigzag before).
       driveRef.current = { fwd: false, back: false, left: false, right: false };
       moveNudgeRef.current = null;
 
@@ -299,16 +295,23 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
           curTurnRef.current = 0;
         } else if (moveNudgeRef.current) {
           // Bounded voice "move forward/backward" — walks a fixed
-          // distance in a straight line (with light obstacle steering)
-          // then stops on its own, no timer or "stop" command needed.
+          // distance then stops on its own. Obstacle-steering (turning to
+          // face away from furniture) only applies when moving FORWARD —
+          // turning while backing up actually steers the robot backward
+          // INTO whatever's behind it, since reverse travel goes opposite
+          // the facing direction. Backward just relies on plain
+          // wall-sliding below, no rotation.
           const nudge = moveNudgeRef.current;
-          const { rx, rz } = obstacleRepulsion(x, z, OBSTACLE_INFLUENCE_RADIUS);
-          const repMag = Math.hypot(rx, rz);
-          if (repMag > 0.03) {
-            const repHeading = headingToDeg(rx, rz);
-            const diff = angleDiffDeg(rotation, repHeading);
-            const turnStep = Math.max(-AUTO_TURN_SPEED * dt, Math.min(AUTO_TURN_SPEED * dt, diff));
-            rotation = (rotation + turnStep + 360) % 360;
+          let repMag = 0;
+          if (nudge.dir === 1) {
+            const { rx, rz } = obstacleRepulsion(x, z, OBSTACLE_INFLUENCE_RADIUS);
+            repMag = Math.hypot(rx, rz);
+            if (repMag > 0.03) {
+              const repHeading = headingToDeg(rx, rz);
+              const diff = angleDiffDeg(rotation, repHeading);
+              const turnStep = Math.max(-AUTO_TURN_SPEED * dt, Math.min(AUTO_TURN_SPEED * dt, diff));
+              rotation = (rotation + turnStep + 360) % 360;
+            }
           }
 
           const speedFactor = Math.max(0.3, 1 - repMag * 0.6);
