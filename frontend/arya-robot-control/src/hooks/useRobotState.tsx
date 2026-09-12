@@ -24,6 +24,11 @@ interface MoveNudge {
   elapsed: number;
 }
 
+interface TurnNudge {
+  remainingDeg: number;
+  dir: 1 | -1; // +1 left, -1 right
+}
+
 interface RobotStateContextValue {
   robot: RobotState;
   setMode: (mode: RobotMode) => void;
@@ -52,11 +57,18 @@ const ARRIVE_DISTANCE = 0.25;
 const OBSTACLE_INFLUENCE_RADIUS = 1.4;
 const REPULSION_TURN_GAIN = 3;
 
-const VOICE_COMMAND_AUTO_STOP_MS = 4000;
-
-const MOVE_NUDGE_DISTANCE = 1.2;
-const MOVE_NUDGE_SPEED = 1.4;
+// "Arya, move forward/backward" — a bounded NUDGE, not a continuous drive:
+// walks a short fixed distance and stops itself.
+const MOVE_NUDGE_DISTANCE = 1.2; // meters — roughly 2-3 steps
+const MOVE_NUDGE_SPEED = 1.4; // m/s
 const MOVE_NUDGE_MAX_SEC = 3;
+
+// "Arya, turn left/right" — same idea: a bounded turn, not a timed
+// continuous spin. At MAX_TURN (100°/s), the old 4-second auto-stop could
+// rotate up to 400° — more than a full circle — before stopping, which
+// looked like the robot "completely turning" instead of just turning.
+const TURN_NUDGE_DEGREES = 30;
+const TURN_NUDGE_SPEED = 90; // deg/s
 
 function forwardVector(rotationDeg: number) {
   const rad = (rotationDeg * Math.PI) / 180;
@@ -91,9 +103,9 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
   const eventBusRef = useRef(new AryaEventBus());
   const gestureSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gestureActiveRef = useRef(false);
-  const voiceCommandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moveNudgeRef = useRef<MoveNudge | null>(null);
   const nudgeTurnRef = useRef(0);
+  const turnNudgeRef = useRef<TurnNudge | null>(null);
 
   const [navigationTarget, setNavigationTargetState] = useState<NavigationTarget | null>(null);
   const navigationTargetRef = useRef<NavigationTarget | null>(null);
@@ -127,6 +139,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
     curTurnRef.current = 0;
     moveNudgeRef.current = null;
     nudgeTurnRef.current = 0;
+    turnNudgeRef.current = null;
   }, []);
 
   const cancelNavigation = useCallback(() => {
@@ -144,6 +157,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
       if (patrolLegRef.current) setPatrol(null);
       moveNudgeRef.current = null;
       nudgeTurnRef.current = 0;
+      turnNudgeRef.current = null;
       driveRef.current = { ...driveRef.current, ...partial };
     },
     [setNavigationTarget, setPatrol],
@@ -166,13 +180,12 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
       if (patrolLegRef.current) setPatrol(null);
       gestureActiveRef.current = false;
 
-      if (voiceCommandTimerRef.current) {
-        clearTimeout(voiceCommandTimerRef.current);
-        voiceCommandTimerRef.current = null;
-      }
+      // Every new command clears ALL prior drive state first — so nothing
+      // from a previous command can linger and combine with the new one.
       driveRef.current = { fwd: false, back: false, left: false, right: false };
       moveNudgeRef.current = null;
       nudgeTurnRef.current = 0;
+      turnNudgeRef.current = null;
 
       switch (command) {
         case "MOVE_FORWARD":
@@ -184,14 +197,12 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
           emit({ type: "ROBOT_MOVING", timestamp: Date.now(), payload: { command } });
           break;
         case "TURN_LEFT":
-          driveRef.current = { fwd: false, back: false, left: true, right: false };
+          turnNudgeRef.current = { remainingDeg: TURN_NUDGE_DEGREES, dir: 1 };
           emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command } });
-          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "TURN_RIGHT":
-          driveRef.current = { fwd: false, back: false, left: false, right: true };
+          turnNudgeRef.current = { remainingDeg: TURN_NUDGE_DEGREES, dir: -1 };
           emit({ type: "ROBOT_TURNING", timestamp: Date.now(), payload: { command } });
-          voiceCommandTimerRef.current = setTimeout(hardStopDrive, VOICE_COMMAND_AUTO_STOP_MS);
           break;
         case "STOP":
           hardStopDrive();
@@ -290,16 +301,34 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
           }
           curSpeedRef.current = 0;
           curTurnRef.current = 0;
+        } else if (turnNudgeRef.current) {
+          // Bounded voice "turn left/right" — rotates a fixed amount then
+          // stops on its own, instead of a timed continuous spin (which
+          // at full turn speed could exceed a full 360° before stopping).
+          const turnNudge = turnNudgeRef.current;
+          const step = Math.min(TURN_NUDGE_SPEED * dt, turnNudge.remainingDeg);
+          rotation = (rotation + step * turnNudge.dir + 360) % 360;
+          turnNudge.remainingDeg -= step;
+
+          if (turnNudge.remainingDeg <= 0.05) {
+            turnNudgeRef.current = null;
+            action = "IDLE";
+            speed = 0;
+            emit({ type: "ROBOT_STOPPED", timestamp: Date.now() });
+          } else {
+            action = "TURNING";
+            speed = 0;
+          }
+          curSpeedRef.current = 0;
+          curTurnRef.current = 0;
         } else if (moveNudgeRef.current) {
           // Bounded voice "move forward/backward" — walks a fixed
           // distance then stops on its own. Forward steering is DAMPED
           // (nudgeTurnRef eases toward the target turn rate, same
           // technique as manual drive's curTurnRef) instead of snapping
-          // rotation straight to the raw repulsion direction every frame
-          // — the raw value can flip rapidly from tiny position changes
-          // near an obstacle, which caused a tangled zigzag right at the
-          // start of a forward nudge. Backward never steers at all, since
-          // turning while reversing pushes the robot INTO what's behind it.
+          // rotation straight to the raw repulsion direction every frame.
+          // Backward never steers at all, since turning while reversing
+          // pushes the robot INTO what's behind it.
           const nudge = moveNudgeRef.current;
           let repMag = 0;
           if (nudge.dir === 1) {
@@ -433,4 +462,4 @@ export function useRobotState(): RobotStateContextValue {
   const ctx = useContext(RobotStateContext);
   if (!ctx) throw new Error("useRobotState must be used within a RobotStateProvider");
   return ctx;
-} 
+}
