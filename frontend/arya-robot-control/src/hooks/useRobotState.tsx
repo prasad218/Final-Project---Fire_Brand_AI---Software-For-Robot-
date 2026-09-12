@@ -19,9 +19,9 @@ export interface DriveFlags {
 export type PatrolLeg = "TO_CORRIDOR_END" | "TO_DOOR" | null;
 
 interface MoveNudge {
-  remaining: number; // meters left to travel
-  dir: 1 | -1; // +1 forward, -1 backward
-  elapsed: number; // seconds, safety cap
+  remaining: number;
+  dir: 1 | -1;
+  elapsed: number;
 }
 
 interface RobotStateContextValue {
@@ -52,18 +52,11 @@ const ARRIVE_DISTANCE = 0.25;
 const OBSTACLE_INFLUENCE_RADIUS = 1.4;
 const REPULSION_TURN_GAIN = 3;
 
-// "Arya, turn left/right" keeps latching + auto-releasing after this
-// long, matching the real robot's backend timer (vivek_common.py:
-// MOVE_AUTO_STOP_SEC) — this part works correctly per your testing, left
-// unchanged.
 const VOICE_COMMAND_AUTO_STOP_MS = 4000;
 
-// "Arya, move forward/backward" is a bounded NUDGE, not a continuous
-// drive — it walks a short fixed distance ("2-3 steps") and stops itself,
-// like a one-shot gesture.
-const MOVE_NUDGE_DISTANCE = 1.2; // meters — roughly 2-3 steps
-const MOVE_NUDGE_SPEED = 1.4; // m/s
-const MOVE_NUDGE_MAX_SEC = 3; // safety cap in case something blocks it
+const MOVE_NUDGE_DISTANCE = 1.2;
+const MOVE_NUDGE_SPEED = 1.4;
+const MOVE_NUDGE_MAX_SEC = 3;
 
 function forwardVector(rotationDeg: number) {
   const rad = (rotationDeg * Math.PI) / 180;
@@ -100,6 +93,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
   const gestureActiveRef = useRef(false);
   const voiceCommandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moveNudgeRef = useRef<MoveNudge | null>(null);
+  const nudgeTurnRef = useRef(0);
 
   const [navigationTarget, setNavigationTargetState] = useState<NavigationTarget | null>(null);
   const navigationTargetRef = useRef<NavigationTarget | null>(null);
@@ -132,6 +126,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
     curSpeedRef.current = 0;
     curTurnRef.current = 0;
     moveNudgeRef.current = null;
+    nudgeTurnRef.current = 0;
   }, []);
 
   const cancelNavigation = useCallback(() => {
@@ -148,6 +143,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
       if (navigationTargetRef.current) setNavigationTarget(null);
       if (patrolLegRef.current) setPatrol(null);
       moveNudgeRef.current = null;
+      nudgeTurnRef.current = 0;
       driveRef.current = { ...driveRef.current, ...partial };
     },
     [setNavigationTarget, setPatrol],
@@ -176,6 +172,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
       }
       driveRef.current = { fwd: false, back: false, left: false, right: false };
       moveNudgeRef.current = null;
+      nudgeTurnRef.current = 0;
 
       switch (command) {
         case "MOVE_FORWARD":
@@ -295,23 +292,29 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
           curTurnRef.current = 0;
         } else if (moveNudgeRef.current) {
           // Bounded voice "move forward/backward" — walks a fixed
-          // distance then stops on its own. Obstacle-steering (turning to
-          // face away from furniture) only applies when moving FORWARD —
-          // turning while backing up actually steers the robot backward
-          // INTO whatever's behind it, since reverse travel goes opposite
-          // the facing direction. Backward just relies on plain
-          // wall-sliding below, no rotation.
+          // distance then stops on its own. Forward steering is DAMPED
+          // (nudgeTurnRef eases toward the target turn rate, same
+          // technique as manual drive's curTurnRef) instead of snapping
+          // rotation straight to the raw repulsion direction every frame
+          // — the raw value can flip rapidly from tiny position changes
+          // near an obstacle, which caused a tangled zigzag right at the
+          // start of a forward nudge. Backward never steers at all, since
+          // turning while reversing pushes the robot INTO what's behind it.
           const nudge = moveNudgeRef.current;
           let repMag = 0;
           if (nudge.dir === 1) {
             const { rx, rz } = obstacleRepulsion(x, z, OBSTACLE_INFLUENCE_RADIUS);
             repMag = Math.hypot(rx, rz);
+            let targetTurnRate = 0;
             if (repMag > 0.03) {
               const repHeading = headingToDeg(rx, rz);
               const diff = angleDiffDeg(rotation, repHeading);
-              const turnStep = Math.max(-AUTO_TURN_SPEED * dt, Math.min(AUTO_TURN_SPEED * dt, diff));
-              rotation = (rotation + turnStep + 360) % 360;
+              targetTurnRate = Math.max(-AUTO_TURN_SPEED, Math.min(AUTO_TURN_SPEED, diff * 2));
             }
+            nudgeTurnRef.current += (targetTurnRate - nudgeTurnRef.current) * Math.min(1, TURN_ACCEL * dt);
+            rotation = (rotation + nudgeTurnRef.current * dt + 360) % 360;
+          } else {
+            nudgeTurnRef.current = 0;
           }
 
           const speedFactor = Math.max(0.3, 1 - repMag * 0.6);
@@ -335,6 +338,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
 
           if (nudge.remaining <= 0.02 || nudge.elapsed > MOVE_NUDGE_MAX_SEC) {
             moveNudgeRef.current = null;
+            nudgeTurnRef.current = 0;
             action = "IDLE";
             speed = 0;
             emit({ type: "ROBOT_STOPPED", timestamp: Date.now() });
@@ -429,4 +433,4 @@ export function useRobotState(): RobotStateContextValue {
   const ctx = useContext(RobotStateContext);
   if (!ctx) throw new Error("useRobotState must be used within a RobotStateProvider");
   return ctx;
-}
+} 
