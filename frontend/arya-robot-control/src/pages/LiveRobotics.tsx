@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Gamepad2, Mic, Navigation2 } from "lucide-react";
+import { Gamepad2, Navigation2 } from "lucide-react";
 import { useSimulation } from "../hooks/useSimulation";
 import { useVisionFeed } from "../hooks/useVisionFeed";
 import { useUnifiedLog } from "../hooks/useUnifiedLog";
 import { useKeyboardDrive } from "../hooks/useKeyboardDrive";
 import { LiveCamera } from "../components/live/LiveCamera";
-import { VoiceCommandPanel } from "../components/live/VoiceCommandPanel";
 import { MovementControls } from "../components/live/MovementControls";
 import { RecognizedPeople } from "../components/live/RecognizedPeople";
 import { LiveRobotLog } from "../components/live/LiveRobotLog";
@@ -17,7 +16,7 @@ import { sendRobotCommand } from "../services/real/robotClient";
 import type { VoiceCommand } from "../types/robot";
 import styles from "./LiveRobotics.module.css";
 
-type DriveMode = "controls" | "voice" | "auto";
+type DriveMode = "controls" | "auto";
 
 export function LiveRobotics() {
   // useSimulation wraps the same shared robot state used by 3D Simulation,
@@ -117,14 +116,6 @@ export function LiveRobotics() {
         </button>
         <button
           role="tab"
-          aria-selected={mode === "voice"}
-          className={[styles.modeBtn, mode === "voice" ? styles.modeBtnActive : ""].join(" ")}
-          onClick={() => setMode("voice")}
-        >
-          <Mic size={14} /> Voice
-        </button>
-        <button
-          role="tab"
           aria-selected={mode === "auto"}
           className={[styles.modeBtn, mode === "auto" ? styles.modeBtnActive : ""].join(" ")}
           onClick={() => setMode("auto")}
@@ -151,7 +142,6 @@ export function LiveRobotics() {
           <RobotStatus robot={robot} />
 
           {mode === "controls" && <MovementControls onCommand={handleCommand} action={robot.action} />}
-          {mode === "voice" && <VoiceCommandPanel onCommand={handleCommand} />}
           {mode === "auto" && (
             <AutoDrivePanel
               navigationTarget={navigationTarget}

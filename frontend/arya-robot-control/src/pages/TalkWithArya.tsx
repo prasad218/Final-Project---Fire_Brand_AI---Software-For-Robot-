@@ -9,7 +9,6 @@ import { StatusIndicator } from "../components/common/StatusIndicator";
 import { ConversationPanel } from "../components/conversation/ConversationPanel";
 import { VoiceInput } from "../components/conversation/VoiceInput";
 import { RecognizedPeople } from "../components/conversation/RecognizedPeople";
-import { GreetingManager } from "../components/conversation/GreetingManager";
 import { ConversationLog } from "../components/conversation/ConversationLog";
 import { makeLogEntry, timestamp } from "../services/mock/mockVision";
 import { sendChatMessage } from "../services/real/chatClient";
@@ -267,11 +266,6 @@ export function TalkWithArya() {
     void submitToArya(userText);
   }
 
-  function handleNamaste() {
-    sendCommand("NAMASTE");
-    void sendRobotCommand("NAMASTE");
-  }
-
   // Real backend events (face recognized, namaste, movement, ...)
   // interleaved with local conversational ones (Thinking/Speaking),
   // sorted back into one chronological feed for the log panel.
@@ -313,7 +307,6 @@ export function TalkWithArya() {
 
         <div className={styles.sideColumn}>
           <RecognizedPeople people={people} />
-          <GreetingManager onNamaste={handleNamaste} onLog={appendLocalLog} />
           <ConversationLog entries={combinedLog} />
         </div>
       </div>
