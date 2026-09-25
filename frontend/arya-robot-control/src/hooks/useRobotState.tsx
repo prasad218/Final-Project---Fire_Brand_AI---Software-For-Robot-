@@ -57,6 +57,17 @@ const ARRIVE_DISTANCE = 0.25;
 const OBSTACLE_INFLUENCE_RADIUS = 1.4;
 const REPULSION_TURN_GAIN = 3;
 
+// Below this magnitude, the combined push-away-from-obstacles vector is
+// treated as noise and ignored for steering. This matters most when two
+// obstacles flank a walkable gap (e.g. the lobby planters): right in the
+// middle, their repulsion vectors nearly cancel, and the ANGLE of a
+// near-zero vector is numerically unstable — tiny floating-point noise
+// flips it wildly frame to frame, producing a jittery, zig-zagging path
+// instead of a straight line through the gap. 0.03 was too low to filter
+// that out; 0.15 is comfortably above the noise floor while still reacting
+// to any obstacle close enough to matter.
+const REPULSION_DEADZONE = 0.15;
+
 // "Arya, move forward/backward" — a bounded NUDGE, not a continuous drive:
 // walks a short fixed distance and stops itself.
 const MOVE_NUDGE_DISTANCE = 1.2; // meters — roughly 2-3 steps
@@ -87,7 +98,7 @@ function angleDiffDeg(from: number, to: number) {
 function blendWithRepulsion(x: number, z: number, desiredHeading: number): { heading: number; repMag: number } {
   const { rx, rz } = obstacleRepulsion(x, z, OBSTACLE_INFLUENCE_RADIUS);
   const repMag = Math.hypot(rx, rz);
-  if (repMag < 0.03) return { heading: desiredHeading, repMag: 0 };
+  if (repMag < REPULSION_DEADZONE) return { heading: desiredHeading, repMag: 0 };
   const repHeading = headingToDeg(rx, rz);
   const diffRep = angleDiffDeg(desiredHeading, repHeading);
   const blend = Math.min(1, repMag);
@@ -335,7 +346,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
             const { rx, rz } = obstacleRepulsion(x, z, OBSTACLE_INFLUENCE_RADIUS);
             repMag = Math.hypot(rx, rz);
             let targetTurnRate = 0;
-            if (repMag > 0.03) {
+            if (repMag > REPULSION_DEADZONE) {
               const repHeading = headingToDeg(rx, rz);
               const diff = angleDiffDeg(rotation, repHeading);
               targetTurnRate = Math.max(-AUTO_TURN_SPEED, Math.min(AUTO_TURN_SPEED, diff * 2));
@@ -385,7 +396,7 @@ export function RobotStateProvider({ children }: { children: ReactNode }) {
           if (targetSpeed > 0) {
             const { rx, rz } = obstacleRepulsion(x, z, OBSTACLE_INFLUENCE_RADIUS);
             const repMag = Math.hypot(rx, rz);
-            if (repMag > 0.03) {
+            if (repMag > REPULSION_DEADZONE) {
               const repHeading = headingToDeg(rx, rz);
               const diff = angleDiffDeg(rotation, repHeading);
               targetTurn += Math.max(-MAX_TURN, Math.min(MAX_TURN, diff * REPULSION_TURN_GAIN));
