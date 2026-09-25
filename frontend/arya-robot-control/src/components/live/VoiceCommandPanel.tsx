@@ -125,17 +125,6 @@ export function VoiceCommandPanel({ onCommand }: VoiceCommandPanelProps) {
           ))}
         </div>
       </div>
-
-      <div className={styles.quickGroup}>
-        <span className={styles.groupLabel}>Gestures</span>
-        <div className={styles.quickRow}>
-          {(["NAMASTE", "WAVE", "LOOK", "SPEAK"] as VoiceCommand[]).map((cmd) => (
-            <button key={cmd} className={styles.quickBtn} onClick={() => handleQuickCommand(cmd)}>
-              {cmd.charAt(0) + cmd.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-      </div>
     </Panel>
   );
-}
+} 
