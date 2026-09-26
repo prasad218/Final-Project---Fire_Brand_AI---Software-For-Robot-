@@ -2,7 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 220px;
+  flex: 1;
+  min-height: 140px;
+  max-height: 420px;
   overflow-y: auto;
   font-family: var(--font-mono);
   font-size: 12px;

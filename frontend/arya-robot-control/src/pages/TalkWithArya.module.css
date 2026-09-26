@@ -9,7 +9,7 @@
   display: grid;
   grid-template-columns: 1fr 320px;
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .mainColumn {
@@ -24,6 +24,14 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+}
+
+/* The Talk Live Log is the last panel in the sidebar — let it grow to
+   fill whatever height the (taller) main column leaves, instead of the
+   sidebar stopping short and leaving a bare gap underneath it. */
+.sideColumn > :last-child {
+  flex: 1;
+  min-height: 0;
 }
 
 .heroCard {
@@ -68,4 +76,4 @@
   .layout {
     grid-template-columns: 1fr;
   }
-}
+} 
