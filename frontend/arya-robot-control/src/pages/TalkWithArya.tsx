@@ -13,6 +13,7 @@ import { ConversationLog } from "../components/conversation/ConversationLog";
 import { makeLogEntry, timestamp } from "../services/mock/mockVision";
 import { sendChatMessage } from "../services/real/chatClient";
 import { sendRobotCommand } from "../services/real/robotClient";
+import { findPeopleAnswer } from "../data/people";
 import type { ConversationMessage, VoiceUIState } from "../types/conversation";
 import type { LiveLogEntry } from "../types/vision";
 import type { VoiceCommand } from "../types/robot";
@@ -206,7 +207,13 @@ export function TalkWithArya() {
     setVoiceState("PROCESSING");
     appendLocalLog("Thinking…");
 
-    const result = await sendChatMessage(userText);
+    // "Who is the principal / HOD of X" is answered entirely on the
+    // frontend (see src/data/people.ts) -- no backend round trip, so it
+    // works even if the backend/tunnel is down, and stays instant.
+    const localPeopleAnswer = findPeopleAnswer(userText);
+    const result = localPeopleAnswer
+      ? { reply: localPeopleAnswer, userText, lang: "en" as const, movement: null }
+      : await sendChatMessage(userText);
     const now = timestamp();
 
     setMessages((prev) => [
@@ -312,4 +319,4 @@ export function TalkWithArya() {
       </div>
     </div>
   );
-}
+} 
