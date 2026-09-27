@@ -55,13 +55,22 @@ export const PEOPLE: Person[] = [
 // Department name -> alias words a spoken/typed question might use for
 // it, so "HOD of AI and ML" / "HOD of AIML" / "artificial intelligence
 // HOD" all resolve without needing every exact phrasing hand-typed.
+//
+// IMPORTANT: keep these words DISCRIMINATING. "engineering" and
+// "science" used to be listed here for CSE, but "engineering" also
+// appears in "Mechanical Engineering" and "Electronic(s) Engineering",
+// and "science" also appears in "CSE (Data Science)" -- so e.g. "HOD
+// of mechanical engineering" tied CSE 1-1 with Mechanical Engineering
+// on the word "engineering" alone, and CSE (inserted first below) won
+// the tie, giving the wrong person. Every word below should belong to
+// exactly one department.
 const DEPARTMENT_ALIASES: Record<string, string[]> = {
   "Artificial Intelligence & Machine Learning (AIML)": ["aiml", "ai", "ml", "artificial", "intelligence", "machine", "learning"],
   "Civil Engineering": ["civil"],
-  "Computer Science & Engineering (CSE)": ["cse", "computer", "science", "engineering"],
+  "Computer Science & Engineering (CSE)": ["cse", "computer"],
   "Mechanical Engineering": ["mechanical", "mech"],
   "CSE (Data Science)": ["data", "science", "ds"],
-  "Electronics & Communication Engineering (ECE)": ["ece", "electronics", "communication", "e&c", "ec"],
+  "Electronics & Communication Engineering (ECE)": ["ece", "electronics", "electronic", "communication", "e&c", "ec"],
 };
 
 /** text + '.', without ever producing a doubled '..' when text (an
