@@ -80,8 +80,17 @@ function sentence(text: string): string {
   return text.replace(/\.+$/, "") + ".";
 }
 
+// The internal Person.role value ("HOD") stays short for the data/
+// matching logic above, but the actual reply text should spell it out
+// -- "Head of the Department", not the abbreviation "HOD".
+const ROLE_DISPLAY: Record<Person["role"], string> = {
+  Principal: "Principal",
+  HOD: "Head of the Department",
+};
+
 function describePerson(p: Person): string {
-  const who = p.department ? `${p.role} of ${p.department}` : p.role;
+  const roleText = ROLE_DISPLAY[p.role];
+  const who = p.department ? `${roleText} of ${p.department}` : roleText;
   let text = sentence(`The ${who} is ${p.name}`);
   const details = [p.designation, p.experience && `${p.experience} of teaching experience`, p.tenure && `${p.tenure} with VCET`, p.qualification].filter(
     (v): v is string => Boolean(v),
@@ -136,4 +145,4 @@ export function findPeopleAnswer(rawText: string): string | null {
   }
 
   return null;
-}
+} 
