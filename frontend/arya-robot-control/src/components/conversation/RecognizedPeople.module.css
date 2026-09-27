@@ -29,6 +29,12 @@
   border: 1px solid currentColor;
 }
 
+.empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0;
+}
+
 .RECOGNIZED,
 .GREETED {
   color: var(--green);

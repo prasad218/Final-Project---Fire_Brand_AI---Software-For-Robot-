@@ -14,16 +14,20 @@ const DISPLAY_STATUS: Partial<Record<RecognizedPerson["status"], string>> = {
 export function RecognizedPeople({ people }: RecognizedPeopleProps) {
   return (
     <Panel title="Recognized People" icon={<Users size={14} />} accent="purple">
-      <ul className={styles.list}>
-        {people.map((p) => (
-          <li key={p.id} className={styles.item}>
-            <span>{p.name}</span>
-            <span className={[styles.status, styles[p.status]].join(" ")}>
-              {DISPLAY_STATUS[p.status] ?? p.status}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {people.length === 0 ? (
+        <p className={styles.empty}>No one recognized yet.</p>
+      ) : (
+        <ul className={styles.list}>
+          {people.map((p) => (
+            <li key={p.id} className={styles.item}>
+              <span>{p.name}</span>
+              <span className={[styles.status, styles[p.status]].join(" ")}>
+                {DISPLAY_STATUS[p.status] ?? p.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </Panel>
   );
 }
