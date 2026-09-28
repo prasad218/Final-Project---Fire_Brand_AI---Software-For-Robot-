@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "./tokens.css";
 
 * {
@@ -13,7 +13,8 @@ body,
 
 body {
   margin: 0;
-  background: radial-gradient(ellipse at top, #0a1224 0%, var(--bg-void) 60%);
+  background: radial-gradient(120% 90% at 20% 10%, #0c2447 0%, #061225 45%, var(--bg-void) 100%);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -118,4 +119,31 @@ a {
 }
 .text-muted {
   color: var(--text-muted);
+}
+
+
+/* ---------- Atmosphere: one slow ambient layer behind the whole app ---------- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 42% at 12% 8%, rgba(26, 107, 214, 0.5), transparent 70%),
+    radial-gradient(42% 46% at 92% 22%, rgba(15, 79, 168, 0.42), transparent 70%),
+    radial-gradient(30% 34% at 40% 104%, rgba(255, 110, 20, 0.2), transparent 70%);
+  filter: blur(40px);
+  animation: atmosphereDrift 40s ease-in-out infinite alternate;
+}
+
+@keyframes atmosphereDrift {
+  to {
+    transform: translate3d(-2%, 3%, 0) scale(1.06);
+  }
+}
+
+#root {
+  position: relative;
+  z-index: 0;
 }

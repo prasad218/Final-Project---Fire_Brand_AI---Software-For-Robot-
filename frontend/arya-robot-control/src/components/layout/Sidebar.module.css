@@ -2,7 +2,9 @@
   width: 210px;
   flex-shrink: 0;
   border-right: 1px solid var(--border-subtle);
-  background: rgba(9, 13, 24, 0.6);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   display: flex;
   flex-direction: column;
   padding: 18px 12px;
@@ -20,7 +22,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
@@ -37,10 +39,10 @@
 }
 
 .navItem.active {
-  color: var(--cyan);
-  background: rgba(56, 211, 255, 0.08);
-  border-color: var(--cyan-dim);
-  box-shadow: var(--glow-cyan);
+  color: var(--text-primary);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(79, 209, 255, 0.1));
+  border-color: rgba(79, 209, 255, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 6px 20px -8px rgba(79, 209, 255, 0.5);
 }
 
 .vitals {
@@ -48,7 +50,8 @@
   padding: 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
-  background: var(--bg-panel);
+  background: var(--glass-fill);
+  box-shadow: var(--glass-edge);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -58,9 +61,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
 }
 
 .vitalsValue {

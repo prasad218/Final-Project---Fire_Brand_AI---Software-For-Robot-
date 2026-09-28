@@ -4,7 +4,8 @@
   justify-content: center;
   gap: 8px;
   padding: 11px 20px;
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 14px;

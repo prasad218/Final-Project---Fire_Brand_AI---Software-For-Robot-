@@ -108,18 +108,19 @@
 }
 
 .quickBtn {
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  border-radius: 999px;
   border: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.02);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
   color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-standard);
 }
 .quickBtn:hover {
-  color: var(--purple);
-  border-color: var(--purple-dim);
+  color: var(--text-primary);
+  border-color: rgba(79, 209, 255, 0.5);
 } 
 
 distance { color: var(--text-muted); font-size: 12px; }

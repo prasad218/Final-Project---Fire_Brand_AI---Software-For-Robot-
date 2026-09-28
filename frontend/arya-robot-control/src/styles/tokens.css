@@ -1,15 +1,15 @@
 :root {
   /* Surfaces */
-  --bg-void: #050810;
+  --bg-void: #02050c;
   --bg-base: #070b16;
-  --bg-panel: #0c1322cc;
+  --bg-panel: rgba(10, 22, 46, 0.5);
   --bg-panel-solid: #0c1322;
   --bg-panel-raised: #101a2e;
-  --border-subtle: #1e2b45;
-  --border-glow: #2a3f63;
+  --border-subtle: rgba(140, 195, 255, 0.16);
+  --border-glow: rgba(140, 195, 255, 0.3);
 
   /* Accents */
-  --cyan: #38d3ff;
+  --cyan: #4fd1ff;
   --cyan-dim: #1c7fa3;
   --blue: #3b82f6;
   --green: #34e3a1;
@@ -21,21 +21,21 @@
   --red: #f0546a;
 
   /* Text */
-  --text-primary: #e8edf6;
-  --text-secondary: #90a0bd;
+  --text-primary: #f4f8ff;
+  --text-secondary: #b4c3dc;
   --text-tertiary: #6d7fa0;
   --text-muted: #5b6a89;
 
   /* Type */
-  --font-display: "Rajdhani", "Segoe UI Semibold", sans-serif;
+  --font-display: "Inter", "Segoe UI", sans-serif;
   --font-body: "Inter", "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", "Consolas", monospace;
 
   /* Radii + shadow */
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --shadow-panel: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --radius-sm: 12px;
+  --radius-md: 22px;
+  --radius-lg: 28px;
+  --shadow-panel: 0 20px 50px -12px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
   --glow-cyan: 0 0 24px rgba(56, 211, 255, 0.25);
   --glow-green: 0 0 20px rgba(52, 227, 161, 0.25);
   --glow-orange: 0 0 20px rgba(240, 136, 62, 0.25);
@@ -46,4 +46,8 @@
   --duration-fast: 150ms;
   --duration-med: 320ms;
   --duration-slow: 700ms;
+
+  /* Liquid glass */
+  --glass-fill: linear-gradient(148deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.035) 32%, rgba(90, 150, 255, 0.05) 72%, rgba(255, 255, 255, 0.04) 100%), rgba(8, 20, 42, 0.52);
+  --glass-edge: inset 0 1.5px 0 rgba(255, 255, 255, 0.26), inset 0 -1px 0 rgba(255, 255, 255, 0.05), inset 0 0 34px rgba(70, 140, 255, 0.06);
 }
