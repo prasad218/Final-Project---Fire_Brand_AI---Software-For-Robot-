@@ -13,6 +13,8 @@ import { ConversationLog } from "../components/conversation/ConversationLog";
 import { makeLogEntry, timestamp } from "../services/mock/mockVision";
 import { sendChatMessage } from "../services/real/chatClient";
 import { sendRobotCommand } from "../services/real/robotClient";
+import { findPeopleAnswer } from "../data/people";
+import { findCampusAddressAnswer } from "../data/campusInfo";
 import type { ConversationMessage, VoiceUIState } from "../types/conversation";
 import type { LiveLogEntry } from "../types/vision";
 import type { VoiceCommand } from "../types/robot";
@@ -206,7 +208,14 @@ export function TalkWithArya() {
     setVoiceState("PROCESSING");
     appendLocalLog("Thinking…");
 
-    const result = await sendChatMessage(userText);
+    // "Who is the principal / HOD of X" and "where is VCET" are both
+    // answered entirely on the frontend (src/data/people.ts and
+    // src/data/campusInfo.ts) -- no backend round trip needed for
+    // either, so they work even if the backend/tunnel is down.
+    const localAnswer = findPeopleAnswer(userText) ?? findCampusAddressAnswer(userText);
+    const result = localAnswer
+      ? { reply: localAnswer, userText, lang: "en" as const, movement: null }
+      : await sendChatMessage(userText);
     const now = timestamp();
 
     setMessages((prev) => [
@@ -312,4 +321,4 @@ export function TalkWithArya() {
       </div>
     </div>
   );
-}
+} 
