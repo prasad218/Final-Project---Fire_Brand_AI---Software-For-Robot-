@@ -253,11 +253,25 @@ export function TalkWithArya() {
   // backend to greet again. The backend only ever sets greetingActive
   // for a recognized (named) person, never "Unknown", so there's no
   // need to filter that out here.
+  //
+  // The AVATAR gesture specifically is skipped while conversationBusyRef
+  // is true (same flag that already silences the spoken "Namaste, X!"
+  // in speak()) -- so a recognition mid-conversation doesn't visibly cut
+  // across what the user is doing on screen. Note this ONLY affects the
+  // on-screen 3D avatar: the backend's own physical gesture (vision_
+  // service.py's gesture.perform_namaste()) already ran server-side
+  // before this ever fires, and can't be stopped from the frontend. The
+  // chat bubble and log line below are deliberately NOT gated -- those
+  // stay exactly as they were.
   useEffect(() => {
     if (greetingActive && greetingActive !== lastGreetedRef.current) {
       lastGreetedRef.current = greetingActive;
-      sendCommand("NAMASTE");
-      appendLocalLog(`Namaste: ${greetingActive}`);
+      if (conversationBusyRef.current) {
+        appendLocalLog(`Skipped greeting gesture (reply in progress): ${greetingActive}`);
+      } else {
+        sendCommand("NAMASTE");
+        appendLocalLog(`Namaste: ${greetingActive}`);
+      }
       const firstName = greetingActive.split(" ")[0];
       const now = timestamp();
       setMessages((prev) => [
