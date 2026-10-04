@@ -50,3 +50,45 @@ export function findCampusAddressAnswer(rawText: string): string | null {
 
   return CAMPUS_ADDRESS;
 }
+
+// ----------------------------------------------------------------------
+// Library -- hardcoded as a frontend-only answer by request, so it never
+// needs the backend/tunnel running at all.
+//
+// IMPORTANT TRADE-OFF (spelled out, since this differs from the VCET
+// address above): this ALWAYS wins over the backend's own
+// Campus_Locations.xlsx answer for "where is the library", even when
+// the backend IS running and reachable -- TalkWithArya.tsx checks this
+// before ever calling the backend, unconditionally. The VCET address
+// is safe to hardcode because it basically never changes; room/floor
+// data is not -- if the Excel sheet's library rows are ever edited
+// (room moved, a library added/removed), THIS file also needs to be
+// updated by hand, or this will keep giving a stale answer forever
+// with no way for the backend to override it. Source data as of this
+// writing (backend/AURA_Windows/data/Campus_Locations.xlsx, "Library"
+// rows): E001 (1st Floor, Krishna Chethana Block), E006 (1st Floor,
+// Krishna Chethana Block, noted "Another library"), A304 (MCA/MBA
+// Floor, Sudarshana Building).
+// ----------------------------------------------------------------------
+
+const LIBRARY_ANSWER =
+  "There are 3 libraries on campus: Room E001 (1st Floor, Krishna Chethana Block), " +
+  "Room E006 (1st Floor, Krishna Chethana Block), and Room A304 (MCA/MBA Floor, Sudarshana Building).";
+
+/**
+ * Instant, local match for "where is the library", "library location",
+ * "which floor is the library on", etc. Returns null if it doesn't
+ * confidently match -- same "don't guess" contract as every other
+ * matcher in this file.
+ */
+export function findLibraryAnswer(rawText: string): string | null {
+  const text = rawText.toLowerCase();
+  if (!text) return null;
+
+  if (!/\blibrar(y|ies)\b/.test(text)) return null;
+
+  const asksLocation = /\bwhere\b|\blocation\b|\blocated\b|\bsituated\b|\bfloor\b|\broom\b|\bblock\b|\bbuilding\b/.test(text);
+  if (!asksLocation) return null;
+
+  return LIBRARY_ANSWER;
+}
