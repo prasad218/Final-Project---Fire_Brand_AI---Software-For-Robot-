@@ -3,6 +3,7 @@ import { Gamepad2, Navigation2 } from "lucide-react";
 import { useSimulation } from "../hooks/useSimulation";
 import { useVisionFeed } from "../hooks/useVisionFeed";
 import { useUnifiedLog } from "../hooks/useUnifiedLog";
+import { usePersistLog } from "../services/logStore";
 import { useKeyboardDrive } from "../hooks/useKeyboardDrive";
 import { LiveCamera } from "../components/live/LiveCamera";
 import { MovementControls } from "../components/live/MovementControls";
@@ -57,6 +58,10 @@ export function LiveRobotics() {
   // there's no physical robot reporting real telemetry, so movement
   // only exists client-side and needs to be logged client-side too.
   const unifiedLog = useUnifiedLog(log, robot.action, robot.distanceTraveledM, robot.position, patrolLeg);
+
+  // Saves each new line of the Live Robot Log to the database (no-op until
+  // the Supabase env vars are set -- see services/logStore.ts).
+  usePersistLog("live", unifiedLog);
 
   // Only react once per real greeting, not on every render while
   // greetingActive stays the same name.

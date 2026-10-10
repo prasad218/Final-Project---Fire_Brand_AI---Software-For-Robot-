@@ -13,6 +13,7 @@ import { ConversationLog } from "../components/conversation/ConversationLog";
 import { makeLogEntry, timestamp } from "../services/mock/mockVision";
 import { sendChatMessage } from "../services/real/chatClient";
 import { sendRobotCommand } from "../services/real/robotClient";
+import { usePersistLog } from "../services/logStore";
 import { findPeopleAnswer } from "../data/people";
 import { findCampusAddressAnswer, findLibraryAnswer } from "../data/campusInfo";
 import type { ConversationMessage, VoiceUIState } from "../types/conversation";
@@ -296,6 +297,10 @@ export function TalkWithArya() {
     .slice()
     .sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0))
     .slice(-40);
+
+  // Saves each new line of the Talk Live Log to the database (no-op until
+  // the Supabase env vars are set -- see services/logStore.ts).
+  usePersistLog("talk", combinedLog);
 
   return (
     <div className={styles.page}>
