@@ -17,9 +17,14 @@
 // Notes on how it behaves:
 //  - Only saves while someone has the page open in a browser. If no tab
 //    is open, nothing is recorded.
-//  - Duplicates are ignored by the database (unique entry_id): backend
-//    log ids are stable ("log-<ms>-<seq>"), so two open browsers, or
-//    both pages, saving the same backend event produce a single row.
+//  - Duplicates never create a second row (entry_id is the primary key):
+//    backend log ids are stable ("log-<ms>-<seq>"), so two open browsers,
+//    or both pages, saving the same backend event produce a single row.
+//    This uses plain inserts, NOT "ON CONFLICT DO NOTHING": Postgres only
+//    allows that for roles that may also read the table, and the table is
+//    deliberately insert-only for the website (the logs hold people's
+//    names). If a batch collides with an existing row, it is retried one
+//    row at a time and the colliding rows are skipped.
 //  - Best effort: a failed save is skipped, not retried, so a database
 //    outage can never slow down or break the app.
 // ============================================================================
@@ -62,28 +67,48 @@ async function saveLogEntries(page: LogPage, entries: LiveLogEntry[]): Promise<v
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     apikey: SUPABASE_KEY as string,
-    // ignore-duplicates = skip rows whose entry_id already exists
-    Prefer: "resolution=ignore-duplicates,return=minimal",
+    Prefer: "return=minimal",
   };
   if ((SUPABASE_KEY as string).startsWith("eyJ")) {
     headers.Authorization = `Bearer ${SUPABASE_KEY}`;
   }
 
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/robot_logs?on_conflict=entry_id`, {
+  const post = (body: unknown[]) =>
+    fetch(`${SUPABASE_URL}/rest/v1/robot_logs`, {
       method: "POST",
       headers,
-      body: JSON.stringify(rows),
+      body: JSON.stringify(body),
     });
-    if (!res.ok && !warned) {
-      warned = true;
-      console.warn(`[logStore] save failed (${res.status}) -- check the robot_logs table, its policy, and the Supabase env vars.`);
+
+  const warnOnce = (detail: string) => {
+    if (warned) return;
+    warned = true;
+    console.warn(`[logStore] ${detail}`);
+  };
+
+  try {
+    const res = await post(rows);
+    if (res.ok) return;
+
+    // 409 = at least one row already exists (another browser saved the
+    // same backend event first). One duplicate fails the whole batch, so
+    // retry row by row: new rows get saved, existing ones are skipped.
+    if (res.status === 409) {
+      if (rows.length > 1) {
+        for (const row of rows) {
+          const single = await post([row]);
+          if (!single.ok && single.status !== 409) {
+            warnOnce(`save failed (${single.status}) -- check the robot_logs table, its policy, and the Supabase env vars.`);
+            return;
+          }
+        }
+      }
+      return;
     }
+
+    warnOnce(`save failed (${res.status}) -- check the robot_logs table, its policy, and the Supabase env vars.`);
   } catch {
-    if (!warned) {
-      warned = true;
-      console.warn("[logStore] could not reach the database; log lines are shown on screen but not saved.");
-    }
+    warnOnce("could not reach the database; log lines are shown on screen but not saved.");
   }
 }
 
