@@ -36,13 +36,13 @@ export interface Person {
 export const PEOPLE: Person[] = [
   {
     role: "Principal",
-    name: "Dr. Mahesh Prasanna K.",
+    name: "Dr. Shrikanth Rao S K",
     designation: "Principal, Professor",
     experience: "20 years",
-    tenure: "11 years",
+    tenure: "20 years",
     qualification: "B.E., M.Tech, Ph.D.",
-    interest: "Artificial Intelligence",
-    specialization: "Image Processing",
+    interest: "Control system, Signal processing, Machine learning, Deep learning",
+    specialization: "Biomedical Signal Processing and Instrumentation",
   },
   { role: "HOD", department: "Artificial Intelligence & Machine Learning (AIML)", name: "Dr. Radhika Shetty D. S." },
   { role: "HOD", department: "Civil Engineering", name: "Prof. Prashantha" },
