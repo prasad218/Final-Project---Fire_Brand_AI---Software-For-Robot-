@@ -22,7 +22,7 @@
 // ============================================================================
 
 export interface Person {
-  role: "Principal" | "HOD";
+  role: "Principal" | "HOD" | "Student Welfare Officer";
   department?: string; // omitted for the Principal (no department to resolve)
   name: string;
   designation?: string;
@@ -50,6 +50,8 @@ export const PEOPLE: Person[] = [
   { role: "HOD", department: "Mechanical Engineering", name: "Dr. Deepak" },
   { role: "HOD", department: "CSE (Data Science)", name: "Prof. Roopa G. K." },
   { role: "HOD", department: "Electronics & Communication Engineering (ECE)", name: "Dr. Shrikanth Rao" },
+  { role: "Student Welfare Officer", name: "Prof. Shrinidhi A" },
+  { role: "Student Welfare Officer", name: "Prof. Nisha" },
 ];
 
 // Department name -> alias words a spoken/typed question might use for
@@ -86,6 +88,7 @@ function sentence(text: string): string {
 const ROLE_DISPLAY: Record<Person["role"], string> = {
   Principal: "Principal",
   HOD: "Head of the Department",
+  "Student Welfare Officer": "Student Welfare Officer",
 };
 
 function describePerson(p: Person): string {
@@ -120,7 +123,23 @@ export function findPeopleAnswer(rawText: string): string | null {
 
   const soundsPersonal = /\bwho\b|qualification|experience|tenure|specialization|specialisation|designation/.test(text);
   const soundsLocational = /\bwhere\b|\broom\b|\bcabin\b|\boffice\b|\bfloor\b|\bblock\b/.test(text);
-  if (!soundsPersonal || soundsLocational) return null;
+  // "Where is the student welfare office" etc. belongs to the backend's
+  // room directory, not here.
+  if (soundsLocational) return null;
+
+  // Student Welfare Officers: more than one person holds this role, so
+  // the answer lists everyone. Triggers on "SWO", or "welfare" plus the
+  // word "officer(s)" or a who-style question, so a general question
+  // like "what is student welfare" is NOT answered with names.
+  if (/\bswo\b/.test(text) || (/\bwelfare\b/.test(text) && (/\bofficers?\b/.test(text) || soundsPersonal))) {
+    const officers = PEOPLE.filter((p) => p.role === "Student Welfare Officer").map((p) => p.name);
+    if (officers.length === 1) return `The Student Welfare Officer is ${officers[0]}.`;
+    if (officers.length > 1) {
+      return `The Student Welfare Officers are ${officers.slice(0, -1).join(", ")} and ${officers[officers.length - 1]}.`;
+    }
+  }
+
+  if (!soundsPersonal) return null;
 
   if (text.includes("principal")) {
     const principal = PEOPLE.find((p) => p.role === "Principal");
