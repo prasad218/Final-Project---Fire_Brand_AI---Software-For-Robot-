@@ -49,7 +49,7 @@ export const PEOPLE: Person[] = [
   { role: "HOD", department: "Computer Science & Engineering (CSE)", name: "Mr. Pradeep Kumar K. G." },
   { role: "HOD", department: "Mechanical Engineering", name: "Dr. Deepak" },
   { role: "HOD", department: "CSE (Data Science)", name: "Prof. Roopa G. K." },
-  { role: "HOD", department: "Electronics & Communication Engineering (ECE)", name: "Dr. Shrikanth Rao" },
+  { role: "HOD", department: "Electronics & Communication Engineering (ECE)", name: "Dr. Shrikanth Rao S K" },
   { role: "Student Welfare Officer", name: "Prof. Shrinidhi A" },
   { role: "Student Welfare Officer", name: "Prof. Nisha" },
 ];
