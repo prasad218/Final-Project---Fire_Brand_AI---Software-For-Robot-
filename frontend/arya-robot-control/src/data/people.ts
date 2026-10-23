@@ -36,7 +36,7 @@ export interface Person {
 export const PEOPLE: Person[] = [
   {
     role: "Principal",
-    name: "Dr. Shrikanth Rao S K",
+    name: "Dr. Purushothama Chippar",
     designation: "Principal, Professor",
     experience: "20 years",
     tenure: "20 years",
