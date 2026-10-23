@@ -37,12 +37,6 @@ export const PEOPLE: Person[] = [
   {
     role: "Principal",
     name: "Dr. Purushothama Chippar",
-    designation: "Principal, Professor",
-    experience: "20 years",
-    tenure: "20 years",
-    qualification: "B.E., M.Tech, Ph.D.",
-    interest: "Control system, Signal processing, Machine learning, Deep learning",
-    specialization: "Biomedical Signal Processing and Instrumentation",
   },
   { role: "HOD", department: "Artificial Intelligence & Machine Learning (AIML)", name: "Dr. Radhika Shetty D. S." },
   { role: "HOD", department: "Civil Engineering", name: "Prof. Prashantha" },
